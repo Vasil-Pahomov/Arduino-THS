@@ -16,7 +16,7 @@ unsigned int maxPPM = 0;
 
 SoftwareSerial btSerial(10,11);
 
-Adafruit_BMP280 bme;
+Adafruit_BME280 bme;
 
 
 void setup() {
@@ -48,10 +48,14 @@ void loop() {
   delay(10);
   digitalWrite(LED_BUILTIN, LOW);
   lcd.setCursor(0,0);
-  lcd.print(getTemperature());
-  lcd.print(F("/"));
-  lcd.print(bme.readTemperature());
-  lcd.print(F("\xDF"));lcd.print(F("C  "));
+  float dsTemp = getTemperature();
+  float bmeTemp = bme.readTemperature();
+  //lcd.print(getTemperature());
+  //lcd.print(F("/"));
+  lcd.print(bmeTemp);
+  lcd.print(F("\xDF"));lcd.print(F("C "));
+  lcd.print(bme.readHumidity());
+  lcd.print("% ");
   lcd.setCursor(0,1);
   unsigned int ppm = mh_getPPM();
   unsigned int sec = millis()/1000;
@@ -69,7 +73,7 @@ void loop() {
     lcd.print(F(")  "));
   }
   
-  btSerial.print(sec);btSerial.print(F("\t"));btSerial.println(ppm);
+  btSerial.print(sec);btSerial.print(F("\t"));btSerial.print(dsTemp);btSerial.print(F("\t"));btSerial.println(bmeTemp);
   btSerial.listen();
     
   delay(10000);
