@@ -1,79 +1,117 @@
+#include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
+#include <SoftwareSerial.h> //one SoftwareSerial uses 126 bytes on clean sketch, two - 157 bytes
+#include <SPI.h>
+#include <SD.h>
 
-#include <LiquidCrystal.h>
-#include <SoftwareSerial.h>
-#include <Adafruit_BMP280.h>
-#include <Adafruit_BME280.h>
-#include "TempDS.h"
+#include "Adafruit_CCS811.h"
+
+#include <PCD8544.h>
 #include "mh_z19.h"
+#include "pms5003.h"
 
-// initialize the library by associating any needed LCD interface pin
-// with the arduino pin number it is connected to
-LiquidCrystal lcd(9, 8, 7, 6, 5, 4);//rs, en, d4, d5, d6, d7
+byte response[32];
 
 unsigned int minPPM = 5000;
 unsigned int maxPPM = 0;
 
-SoftwareSerial btSerial(10,11);
-
+SoftwareSerial btSerial(8,9);
 Adafruit_BME280 bme;
+Adafruit_CCS811 ccs;
 
+//clock, data-in, data select, reset, enable
+static PCD8544 lcd(7,6,5,3,4);
 
 void setup() {
-  // set up the LCD's number of columns and rows:
-  lcd.begin(16, 2);
+  Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
 
+  // PCD8544-compatible displays may have a different resolution...
+  lcd.begin(84, 48);
+  lcd.setCursor(0, 0);
+  lcd.print("Initializing");
+  
   btSerial.begin(9600);
 
-  Serial.begin(9600);
   mh_setup();
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  /*bme.settings.commInterface = I2C_MODE;
-  bme.settings.I2CAddress = 0x76; //Адрес датчика, в моём случае не стандартный
-  bme.settings.runMode=3;
-  bme.settings.tStandby=5;
-  bme.settings.filter=0;
-  bme.settings.tempOverSample = 1;
-  bme.settings.humidOverSample = 1;*/
   if (!bme.begin(0x76)) {
-    lcd.print(F("Error initializing BMP"));
+    btSerial.print(F("BMP Error!"));
+    lcd.setCursor(0, 0);
+    lcd.print(F("BMP Error!"));
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(10000);
+    lcd.clear();
   }
+
+  if(!ccs.begin()){
+    btSerial.print(F("CCS Error!"));
+    lcd.setCursor(0, 0);
+    lcd.print(F("CCS Error!"));
+    delay(10000);
+    lcd.clear();
+  }
+
+  ccs.setDriveMode(CCS811_DRIVE_MODE_10SEC);
+
+  pms_setup();
 }
 
 void loop() {
   
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(10);
-  digitalWrite(LED_BUILTIN, LOW);
-  lcd.setCursor(0,0);
-  float dsTemp = getTemperature();
+
   float bmeTemp = bme.readTemperature();
-  //lcd.print(getTemperature());
-  //lcd.print(F("/"));
-  lcd.print(bmeTemp);
-  lcd.print(F("\xDF"));lcd.print(F("C "));
-  lcd.print(bme.readHumidity());
-  lcd.print("% ");
-  lcd.setCursor(0,1);
+  float bmeHum = bme.readHumidity();
+
   unsigned int ppm = mh_getPPM();
   unsigned int sec = millis()/1000;
   
-  lcd.print(ppm);
+  ccs.setEnvironmentalData((int)bmeHum, bmeTemp);
+  int ppb = -3;//data not available
+  int eCO2 = -3;
+  if(ccs.available()){
+    if (!ccs.readData()) {
+      eCO2 = ccs.geteCO2();
+      if (eCO2 != 0) {
+        ppb = ccs.getTVOC();
+      } else {
+        ppb = -1;//eCO2=0, warming up
+      }
+    } else 
+    {
+      ppb = -2;//data not read
+    }
+      
+  }
+
   if (sec < 1*60) {
-    lcd.print(F("?  "));
+
   } else {
     if (ppm > maxPPM) maxPPM=ppm;
     if (ppm < minPPM) minPPM=ppm;
-    lcd.print(F(" ("));
-    lcd.print(minPPM);
-    lcd.print(F("-"));
-    lcd.print(maxPPM);
-    lcd.print(F(")  "));
   }
+
+  pms_read();
   
-  btSerial.print(sec);btSerial.print(F("\t"));btSerial.print(dsTemp);btSerial.print(F("\t"));btSerial.println(bmeTemp);
+  lcd.clear();
+  digitalWrite(LED_BUILTIN, LOW);
+
+  lcd.setCursor(0, 0);
+  lcd.print(bmeTemp);lcd.print(F(" C"));
+  lcd.setCursor(0, 1);
+  lcd.print(bmeHum);lcd.print(F(" %"));
+  lcd.setCursor(0, 2);
+  lcd.print(ppm);lcd.print(' ');lcd.print(minPPM);lcd.print('-');lcd.print(maxPPM);
+  lcd.setCursor(0, 3);
+  lcd.print(eCO2); lcd.print(F(" e "));lcd.print(ppb);lcd.print(F(" ppb "));
+  lcd.setCursor(0, 4);
+  lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print(F(" PM"));
+  
+   
+  btSerial.print(sec);btSerial.print('\t');btSerial.print(bmeTemp);btSerial.print('\t');btSerial.print(bmeHum);btSerial.print('\t');btSerial.print(ppm);btSerial.print('\t');btSerial.print(ppb);
+  btSerial.println();
   btSerial.listen();
     
   delay(10000);
@@ -89,7 +127,9 @@ void loop() {
       btSerial.println(F("max reset"));
     }
   }
+
   
+  /**/
 }
 
 
