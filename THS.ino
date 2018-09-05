@@ -14,13 +14,14 @@ byte response[32];
 
 unsigned int minPPM = 5000;
 unsigned int maxPPM = 0;
+int errors, success;
 
 SoftwareSerial btSerial(8,9);
 Adafruit_BME280 bme;
 Adafruit_CCS811 ccs;
 
 //clock, data-in, data select, reset, enable
-static PCD8544 lcd(7,6,5,3,4);
+static PCD8544 lcd(7,6,5,A7,A7);
 
 void setup() {
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
@@ -35,6 +36,8 @@ void setup() {
   mh_setup();
 
   pinMode(LED_BUILTIN, OUTPUT);
+  analogReference(INTERNAL);
+  pinMode(A6, INPUT);
 
   if (!bme.begin(0x76)) {
     btSerial.print(F("BMP Error!"));
@@ -94,6 +97,10 @@ void loop() {
   }
 
   pms_read();
+
+  if (pms_error) errors++; else success++;
+
+  int acc=analogRead(A6);
   
   lcd.clear();
   digitalWrite(LED_BUILTIN, LOW);
@@ -108,8 +115,26 @@ void loop() {
   lcd.print(eCO2); lcd.print(F(" e "));lcd.print(ppb);lcd.print(F(" ppb "));
   lcd.setCursor(0, 4);
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print(F(" PM"));
-  
-   
+
+  lcd.setCursor(0, 5);
+  lcd.print('E'); lcd.print(errors); lcd.print('/'); lcd.print(success);
+
+  lcd.setCursor(50,0);
+  lcd.print(acc);lcd.print('%');
+
+  Serial.print(pms_pm1_cf1);Serial.print('\t'); 
+  Serial.print(pms_pm2_5_cf1);Serial.print('\t');
+  Serial.print(pms_pm10_cf1);Serial.print('\t');
+  Serial.print(pms_pm1_ae);Serial.print('\t');
+  Serial.print(pms_pm2_5_ae);Serial.print('\t');
+  Serial.print(pms_pm10_ae);Serial.print('\t');
+  Serial.print(pms_num_0_3);Serial.print('\t');
+  Serial.print(pms_num_0_5);Serial.print('\t');
+  Serial.print(pms_num_1);Serial.print('\t');
+  Serial.print(pms_num_2_5);Serial.print('\t');
+  Serial.print(pms_num_5_0);Serial.print('\t');
+  Serial.println(pms_num_10);
+/**/ 
   btSerial.print(sec);btSerial.print('\t');btSerial.print(bmeTemp);btSerial.print('\t');btSerial.print(bmeHum);btSerial.print('\t');btSerial.print(ppm);btSerial.print('\t');btSerial.print(ppb);
   btSerial.println();
   btSerial.listen();
