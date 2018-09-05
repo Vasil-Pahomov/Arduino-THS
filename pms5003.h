@@ -15,6 +15,8 @@ extern unsigned int
   pms_num_2_5,
   pms_num_5_0,
   pms_num_10;
+
+extern bool pms_error;
   
 void pms_setup();
 bool pms_read();
