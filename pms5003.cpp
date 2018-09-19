@@ -25,7 +25,7 @@ bool pms_error;
 #define PMS_CMD_MODE 0xe1
 #define PMS_CMD_SLEEP 0xe4
 
-#define intresponse(highidx, lowidx) (response[highidx] << 8) + (response[lowidx])
+#define intbuf(highidx, lowidx) (buf[highidx] << 8) + (buf[lowidx])
 
 void pms_setup() {
   pmsSerial.begin(9600);
@@ -35,33 +35,33 @@ void pms_setup() {
 bool pms_read()
 {
   pms_cmd(PMS_CMD_READ, 0, 0);
-  memset(response,0,32);
-  pmsSerial.readBytes(response, 32);
+  memset(buf,0,32);
+  pmsSerial.readBytes(buf, 32);
   pms_error = false;
 
-  if (response[0] != 0x42 || response[1] != 0x4d) {
+  if (buf[0] != 0x42 || buf[1] != 0x4d) {
     pms_error = true;
 #ifdef DEBUG
-    Serial.print(F("PMS read warning: signature incorrect, expecled 16973, found:"));Serial.println(intresponse(0,1));
+    Serial.print(F("PMS read warning: signature incorrect, expecled 16973, found:"));Serial.println(intbuf(0,1));
 #endif
   }
   
-  if (response[2] != 0 || response[3] != 28) {
+  if (buf[2] != 0 || buf[3] != 28) {
     pms_error = true;
 #ifdef DEBUG
-    Serial.print(F("PMS read warning: frame length is incorrect, expected 28, found:"));Serial.println(intresponse(2,3));
+    Serial.print(F("PMS read warning: frame length is incorrect, expected 28, found:"));Serial.println(intbuf(2,3));
 #endif
   }
 
   unsigned int checksum = 0;
   for (byte i=0;i<30;i++)
   {
-    checksum += response[i];
+    checksum += buf[i];
   }
-  if (response[30] != (checksum >> 8) || response[31] != (checksum & 255)) {
+  if (buf[30] != (checksum >> 8) || buf[31] != (checksum & 255)) {
     pms_error = true;
 #ifdef DEBUG
-    Serial.print(F("PMS read warning: checksum is incorrect, expected")); Serial.print(checksum); Serial.print(F(", found:"));Serial.println(intresponse(30,31));     
+    Serial.print(F("PMS read warning: checksum is incorrect, expected")); Serial.print(checksum); Serial.print(F(", found:"));Serial.println(intbuf(30,31));     
 #endif
   }
 
@@ -69,25 +69,25 @@ bool pms_read()
   if (pms_error) {
     Serial.print("PMS: resp ");
     for (byte i = 0; i < 32; i++) {
-      Serial.print(response[i]);Serial.print(' ');
+      Serial.print(buf[i]);Serial.print(' ');
     }
     Serial.println();    
   }
 #endif
 
   if (!pms_error) {
-    pms_pm1_cf1 = intresponse(4,5);
-    pms_pm2_5_cf1 = intresponse(6,7);
-    pms_pm10_cf1 = intresponse(8,9);
-    pms_pm1_ae = intresponse(10,11);
-    pms_pm2_5_ae = intresponse(12,13);
-    pms_pm10_ae = intresponse(14,15);
-    pms_num_0_3 = intresponse(16,17);
-    pms_num_0_5 = intresponse(18,19);
-    pms_num_1 = intresponse(20,21);
-    pms_num_2_5 = intresponse(22,23);
-    pms_num_5_0 = intresponse(24,25);
-    pms_num_10 = intresponse(26,27);
+    pms_pm1_cf1 = intbuf(4,5);
+    pms_pm2_5_cf1 = intbuf(6,7);
+    pms_pm10_cf1 = intbuf(8,9);
+    pms_pm1_ae = intbuf(10,11);
+    pms_pm2_5_ae = intbuf(12,13);
+    pms_pm10_ae = intbuf(14,15);
+    pms_num_0_3 = intbuf(16,17);
+    pms_num_0_5 = intbuf(18,19);
+    pms_num_1 = intbuf(20,21);
+    pms_num_2_5 = intbuf(22,23);
+    pms_num_5_0 = intbuf(24,25);
+    pms_num_10 = intbuf(26,27);
   }
 }
 
@@ -108,32 +108,32 @@ void pms_cmd(byte command, byte datah, byte datal)
 #endif
 }
 
-void pms_readcmdresponse()
+void pms_readcmdbuf()
 {
-  //though not documented, on some commands sensor sends the following response:
+  //though not documented, on some commands sensor sends the following buf:
   //0x42 0x4d - signature bytes
   //0x00 0x04 - always 4 (a kind of frame length?)
   //<command byte> <data byte> <data byte> - the same as sent in command
   //<verify_high_byte> <verify_low_byte> - sum of all bytes except signature (thus it equals to corresponding sum in the command plus 4)
 #ifdef DEBUG
-  Serial.print("PMS: cmdresp=");Serial.println(pmsSerial.readBytes(response, 9));
+  Serial.print("PMS: cmdresp=");Serial.println(pmsSerial.readBytes(buf, 9));
 #else
-  pmsSerial.readBytes(response, 9);
+  pmsSerial.readBytes(buf, 9);
 #endif
-  //todo: add response check    
+  //todo: add buf check    
 }
 void pms_setactive(bool isActive)
 {
   pms_cmd(PMS_CMD_MODE, 0, isActive ? 1 : 0);
-  pms_readcmdresponse();  
+  pms_readcmdbuf();  
 }
 
 void pms_setsleep(bool isSleep)
 {
   pms_cmd(PMS_CMD_SLEEP, 0, isSleep ? 0 : 1);
-  if (isSleep) //sensor does not sends response to wakeup command
+  if (isSleep) //sensor does not sends buf to wakeup command
   {
-    pms_readcmdresponse();
+    pms_readcmdbuf();
   }
 }
 

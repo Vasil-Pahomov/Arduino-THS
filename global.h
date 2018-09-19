@@ -1,3 +1,3 @@
-extern byte response[32];
+extern byte buf[32];
 
 
