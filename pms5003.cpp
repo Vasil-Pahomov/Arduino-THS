@@ -3,7 +3,7 @@
 #include "pms5003.h"
 #include "global.h"
 //#define DEBUG
-SoftwareSerial pmsSerial(A2, A3); // A2 - к TX сенсора, A3 - к RX
+SoftwareSerial pmsSerial(A1, A0); // A1- Рє TX СЃРµРЅСЃРѕСЂР°, A0 - Рє RX
 
 unsigned int 
   pms_pm1_cf1, 
@@ -136,5 +136,6 @@ void pms_setsleep(bool isSleep)
     pms_readcmdbuf();
   }
 }
+
 
 

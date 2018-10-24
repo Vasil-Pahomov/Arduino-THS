@@ -3,7 +3,7 @@
 #include "mh_z19.h"
 #include "global.h"
 //#define DEBUG
-SoftwareSerial mhSerial(A0, A1); // A0 - к TX сенсора, A1 - к RX
+SoftwareSerial mhSerial(A3, A2); // A0 - Рє TX СЃРµРЅСЃРѕСЂР°, A1 - Рє RX
 
 byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
 
@@ -56,3 +56,4 @@ unsigned int mh_getPPM()
     return ppm;
   }
 }
+
