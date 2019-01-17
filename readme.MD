@@ -46,7 +46,7 @@ No specific data, all zeros
 
 #### Status byte
 Zero value means OK, one - failure
-| Bit| Description |
+| Bit | Description |
 | ----- | ----------- |
 | 0 | BME sensor |
 | 1 | MH-Z19 sensor |
