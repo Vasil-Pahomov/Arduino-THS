@@ -1,14 +1,15 @@
-ает#include <Adafruit_NeoPixel.h>
+  #include <Adafruit_NeoPixel.h>
 
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
 #include <SoftwareSerial.h> //one SoftwareSerial uses 126 bytes on clean sketch, two - 157 bytes
 #include <SPI.h>
+#include <PCD8544.h>
+#include <Adafruit_CCS811.h>
+#include <time.h>
 
 #include "SDLog.h"
-#include "Adafruit_CCS811.h"
 
-#include <PCD8544.h>
 #include "mh_z19.h"
 #include "pms5003.h"
 
@@ -47,11 +48,11 @@ byte buf[32];
 SoftwareSerial btSerial(8,9);
 Adafruit_BME280 bme;
 Adafruit_CCS811 ccs;
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(5, 2, NEO_GRB + NEO_KHZ800); 
+//Adafruit_NeoPixel pixels = Adafruit_NeoPixel(5, 2, NEO_GRB + NEO_KHZ800); 
 
 
 //clock, data-in, data select, reset, enable
-static PCD8544 lcd(7,6,5,A7,A7);
+static PCD8544 lcd(7,6,5,4,A7);
 
 DLog dlog;
 
@@ -60,17 +61,23 @@ uint32_t long rtimebase;//UNIX time of sensor start, calculates every time STATU
 uint8_t rcmdlen;//length of currently receiving command
 uint32_t lastmsbt;//last millis() BT was read, used to track BT timeout
 
+tm timestruct;
+
+
 void setup() {
   analogWrite(BACKLIGHT_PIN,255);
 
   // PCD8544-compatible displays may have a different resolution...
   lcd.begin(84, 48);
   lcd.setCursor(0, 0);
-  lcd.print("Initializing");
+  lcd.print(F("Init: serial"));
 
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
 
   btSerial.begin(9600);
+
+  lcd.setCursor(0, 1);
+  lcd.print(F("Init: CO2"));
 
   //todo: check for MH setup error
   mh_setup();
@@ -79,8 +86,10 @@ void setup() {
   analogReference(INTERNAL);
   pinMode(A6, INPUT);
 
+  lcd.setCursor(0, 2);
+  lcd.print(F("Init: temp&hum"));
+
   if (!bme.begin(0x76)) {
-    btSerial.print(F("BMP Error!"));
     lcd.setCursor(0, 0);
     lcd.print(F("BMP Error!"));
     digitalWrite(LED_BUILTIN, HIGH);
@@ -88,8 +97,10 @@ void setup() {
     lcd.clear();
   }
 
+  lcd.setCursor(0, 3);
+  lcd.print(F("Init: VOC"));
+
   if(!ccs.begin()){
-    btSerial.print(F("CCS Error!"));
     lcd.setCursor(0, 0);
     lcd.print(F("CCS Error!"));
     delay(10000);
@@ -98,11 +109,15 @@ void setup() {
 
   ccs.setDriveMode(CCS811_DRIVE_MODE_10SEC);
 
+  lcd.setCursor(0, 4);
+  lcd.print(F("Init: PM"));
   //todo: check for PMS setup error
   pms_setup();
   analogWrite(BACKLIGHT_PIN,10);
+  lcd.setCursor(0, 5);
+  lcd.print(F("Init done"));
 
-  lastms = millis();
+  lastms = 0;
 
 }
 
@@ -110,7 +125,6 @@ void setTimeFromCommand() {
   uint32_t * rtime = (uint32_t*) (buf + 3);
   rtimebase = *rtime - millis()/1000;
 #ifdef DEBUG
-  Serial.print(F("BT: rtimebase="));Serial.println(rtimebase); 
 #endif   
 }
 
@@ -119,14 +133,12 @@ void setTimeFromCommand() {
 //val - value to 
 void setLEDColorFromValue(int lowval, int midval, int highval, int val, bool reverse, bool flash)
 {
-  if (val 
 }
 
 void loop() {
-
   btSerial.listen();
-  while (millis() < lastms + READ_INTERVAL_MS) {
-    if (btSerial.available() > 0)
+  while (lastms != 0 && (millis() < lastms + READ_INTERVAL_MS)) {
+/*    if (btSerial.available() > 0)
     {
       buf[rcmdlen++] = btSerial.read();
       if (rcmdlen == 0) { //looking for the beginning of the command
@@ -183,9 +195,9 @@ void loop() {
       }
       
       lastmsbt = millis();
-    }
-  }
+    }*/
   
+  }
   lastms = millis();
   
   digitalWrite(LED_BUILTIN, HIGH);
@@ -216,15 +228,16 @@ void loop() {
 
   pms_read();
 
-  int acc=analogRead(A6);
   
+  int acc=analogRead(A6);
+
   lcd.clear();
   digitalWrite(LED_BUILTIN, LOW);
 
   lcd.setCursor(0, 0);
-  lcd.print(bmeTemp);lcd.print(F(" C"));
+  lcd.print(bmeTemp);lcd.print(F("C"));
   lcd.setCursor(0, 1);
-  lcd.print(bmeHum);lcd.print(F(" %"));
+  lcd.print(bmeHum);lcd.print(F("%"));
   lcd.setCursor(0, 2);
   lcd.print(ppm);lcd.print(' ');
   lcd.setCursor(0, 3);
@@ -232,33 +245,45 @@ void loop() {
   lcd.setCursor(0, 4);
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print(F(" PM"));
 
-  lcd.setCursor(50,0);
+//  if (rtimebase != 0) {
+    //time_t ttime = rtimebase + millis()/1000 - UNIX_OFFSET;
+    //gmtime_r(&ttime, &timestruct);
+    //isotime_r(&timestruct, (char*)buf);
+    //lcd.print((char*)buf[11]);
+//  } else {
+//    lcd.print(F("--:--:--"));
+//  }
+
+  lcd.setCursor(0, 5);
   lcd.print(acc);lcd.print('%');
 
-  //btSerial.print(sec);btSerial.print('\t');btSerial.print(bmeTemp);btSerial.print('\t');btSerial.print(bmeHum);btSerial.print('\t');btSerial.print(ppm);btSerial.print('\t');btSerial.print(ppb);
-  
-  btSerial.println();
-  btSerial.listen();
 
   dlog.ssecs = millis()/1000;
   dlog.rtime = rtimebase != 0 ? rtimebase + dlog.ssecs : 0;
-  dlog.temp = bmeTemp*100;
-  dlog.hum = bmeHum*100;
-  dlog.co2 = ppm;
-  dlog.pm1 = pms_pm1_cf1;
-  dlog.pm25 = pms_pm2_5_cf1;
-  dlog.pm10 = pms_pm10_cf1;
-  dlog.tvoc = ppb;
+  dlog.data.temp = bmeTemp*100;
+  dlog.data.hum = bmeHum*100;
+  dlog.data.co2 = ppm;
+  dlog.data.pm1 = pms_pm1_cf1;
+  dlog.data.pm25 = pms_pm2_5_cf1;
+  dlog.data.pm10 = pms_pm10_cf1;
+  dlog.data.tvoc = ppb;
   
   writeLog(&dlog);
+
+  //writing binary data to the bluetooth
   
-  //LEDs are 0 - humidity, 1 - temperature, 2 - CO2, 3 - PM, 4 - VOC
+  buf[0] = 0xDE; //signature
+  buf[1] = 0xAF;
+  buf[2] = 0;    //command code
+  buf[3] = 0;    //status
+  buf[4] = 99;   //battery
+  btSerial.write(buf,5);
+  delay(50);  //not sure why these delays are needed... but there's sometimes garbage in BT channel otherwise
+  btSerial.write((byte*)&lastLogIdx, 4); //log index
+  delay(50);  
+  btSerial.write((byte*)&dlog.data, sizeof(Data)); //data
+  
   
   
   /**/
 }
-
-
-
-
-

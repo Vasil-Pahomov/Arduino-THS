@@ -6,13 +6,14 @@
 //CS pin of the SD card
 #define SD_CS_PIN 10
 #define INDEX_FILE_NAME F("i")
-#define MAX_FILE_SIZE sizeof(DLog)*10000//10000 records per file
+#define RECS_PER_FILE 10000 //10000 records per file
 #define MAX_FILES_COUNT 4000 //this results in less than 1 gig in the total files size and stores data for 10 years of continous operation - seems appropriate
 #define DEBUG
 
 File file;
 //number of current file being written, initial value means it's not initialized yet
 uint16_t curFileNum = 0xFFFF;
+uint32_t lastLogIdx = 0xFFFFFFFF;
 
 bool updateIndexFile()
 {
@@ -78,6 +79,7 @@ bool writeLog(DLog* rec)
     return false;
   }
   String fname = String(curFileNum);
+  long filesize = file.size();
   if (SD.exists(fname)) {
     file = SD.open(fname,FILE_READ);
     if (!file) {
@@ -86,9 +88,8 @@ bool writeLog(DLog* rec)
   #endif      
       return false;
     }
-    long filesize = file.size();
     file.close();
-    if (filesize > MAX_FILE_SIZE) {
+    if (filesize > sizeof(DLog)*RECS_PER_FILE) {
       //assume file counter never overruns. once data is written every 10 seconds and single file has 10000 records, 16-bit number should overrun in almost 200 years of continous operation
       curFileNum++;
   #ifdef DEBUG
@@ -121,6 +122,8 @@ bool writeLog(DLog* rec)
   }
   file.write((uint8_t*)rec, sizeof(DLog));
   file.close(); 
+
+  lastLogIdx = curFileNum * RECS_PER_FILE + filesize / sizeof(DLog);
   
   return true;
 }
