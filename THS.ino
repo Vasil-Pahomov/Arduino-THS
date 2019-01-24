@@ -13,6 +13,7 @@
 #include "mh_z19.h"
 #include "pms5003.h"
 
+#define DEBUG
 #define READ_INTERVAL_MS 10000
 #define BT_TIMEOUT_MS 2000
 #define BACKLIGHT_PIN 3
@@ -54,6 +55,16 @@ Adafruit_CCS811 ccs;
 //clock, data-in, data select, reset, enable
 static PCD8544 lcd(7,6,5,4,A7);
 
+
+static const byte DEGREES_CHAR = 1;
+static const byte degrees_glyph[] = { 0x00, 0x07, 0x05, 0x07, 0x00 };
+static const byte CO2_CHAR = 2;
+static const byte co2_glyph[] = { 0x06, 0x3e, 0x3c, 0x7c, 0x60 };
+static const byte TVOC_CHAR = 3;
+static const byte tvoc_glyph[] = { 0x18, 0x24, 0x42, 0x24, 0x18 };
+static const byte PM_CHAR = 4;
+static const byte pm_glyph[] = { 0x0a, 0x20, 0x48, 0x02, 0x24 };
+
 DLog dlog;
 
 uint32_t lastms;//last millis() data was read, used to track intervals between readings
@@ -70,6 +81,12 @@ void setup() {
   // PCD8544-compatible displays may have a different resolution...
   lcd.begin(84, 48);
   lcd.setCursor(0, 0);
+
+  lcd.createChar(DEGREES_CHAR, degrees_glyph);
+  lcd.createChar(CO2_CHAR, co2_glyph);
+  lcd.createChar(TVOC_CHAR, tvoc_glyph);
+  lcd.createChar(PM_CHAR, pm_glyph);
+    
   lcd.print(F("Init: serial"));
 
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
@@ -121,10 +138,11 @@ void setup() {
 
 }
 
-void setTimeFromCommand() {
+void commandSync() {
   uint32_t * rtime = (uint32_t*) (buf + 3);
   rtimebase = *rtime - millis()/1000;
 #ifdef DEBUG
+  Serial.print(F("Got time:"));Serial.println(*rtime); 
 #endif   
 }
 
@@ -138,9 +156,12 @@ void setLEDColorFromValue(int lowval, int midval, int highval, int val, bool rev
 void loop() {
   btSerial.listen();
   while (lastms != 0 && (millis() < lastms + READ_INTERVAL_MS)) {
-/*    if (btSerial.available() > 0)
+    while (btSerial.available() > 0)
     {
       buf[rcmdlen++] = btSerial.read();
+#ifdef DEBUG
+      Serial.print(F("B("));Serial.print(rcmdlen-1);Serial.print(F(")="));Serial.println(buf[rcmdlen-1]); 
+#endif        
       if (rcmdlen == 0) { //looking for the beginning of the command
         if (buf[0] != 0xDE) {
           rcmdlen = 0;  
@@ -156,46 +177,33 @@ void loop() {
 #endif        
         } 
       } 
-      if (rcmdlen > 0 && millis() > lastmsbt + BT_TIMEOUT_MS) {
-        //timeout receiving command, reverting
-#ifdef DEBUG
-          Serial.print(F("BT: command timeout at length "));Serial.println(rcmdlen); 
-#endif        
-          rcmdlen = 0;  
-      } else if (rcmdlen == 16) {
-        //command fully received
-        uint8_t chk = 0;
-        for (uint8_t i=2;i<15;i++) {
-          chk+=buf[i];
-        }
-        if (chk!=buf[15]) {
-          buf[2] = 0xFF;
-#ifdef DEBUG
-          Serial.print(F("BT: checksum error "));Serial.print(ckh);Serial.print('/');Serial.print(buf[15]); 
-#endif        
+      //command received (may be partially)
+      
+      switch (buf[2]) {
+        case 0:
+          if (rcmdlen>=7) {
+            commandSync();
+            rcmdlen = 0;
+          }
           break;
-        }
-        
-        switch (buf[2]) {
-          case 0:
-            setTimeFromCommand();
-            //todo: command implementation
-            break;
-          case 1:
-            setTimeFromCommand();
-            //todo: command implementation
-            break;
-          default:
+        default:
 #ifdef DEBUG
-          Serial.print(F("BT: command code error "));Serial.println(buf[2]);
+        Serial.print(F("BT: command code error "));Serial.println(buf[2]);
 #endif        
-            break;
-        }
         rcmdlen=0;
+        break;
       }
+   
       
       lastmsbt = millis();
-    }*/
+    }
+    if (rcmdlen > 1 && millis() > lastmsbt + BT_TIMEOUT_MS) {
+      //timeout receiving command, reverting
+#ifdef DEBUG
+        Serial.print(F("BT: command timeout at length "));Serial.println(rcmdlen); 
+#endif        
+        rcmdlen = 0;  
+    }    
   
   }
   lastms = millis();
@@ -229,33 +237,36 @@ void loop() {
   pms_read();
 
   
-  int acc=analogRead(A6);
+  int acc=(analogRead(A6)-700)/3;
 
   lcd.clear();
   digitalWrite(LED_BUILTIN, LOW);
 
   lcd.setCursor(0, 0);
-  lcd.print(bmeTemp);lcd.print(F("C"));
+  lcd.print(bmeTemp);lcd.print((char)1);
+  lcd.setCursor(42, 0);
+  lcd.print(bmeHum);lcd.print('%');
   lcd.setCursor(0, 1);
-  lcd.print(bmeHum);lcd.print(F("%"));
+  lcd.print(ppm);lcd.print((char)2);
+  lcd.setCursor(42, 1);
+  lcd.print(ppb);lcd.print((char)3);
   lcd.setCursor(0, 2);
-  lcd.print(ppm);lcd.print(' ');
-  lcd.setCursor(0, 3);
-  lcd.print(eCO2); lcd.print(F(" e "));lcd.print(ppb);lcd.print(F(" ppb "));
-  lcd.setCursor(0, 4);
-  lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print(F(" PM"));
+  lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print((char)4);
 
-//  if (rtimebase != 0) {
-    //time_t ttime = rtimebase + millis()/1000 - UNIX_OFFSET;
-    //gmtime_r(&ttime, &timestruct);
-    //isotime_r(&timestruct, (char*)buf);
-    //lcd.print((char*)buf[11]);
-//  } else {
-//    lcd.print(F("--:--:--"));
-//  }
+
+  if (rtimebase != 0) {
+    time_t ttime = rtimebase + millis()/1000 - UNIX_OFFSET;
+    gmtime_r(&ttime, &timestruct);
+    isotime_r(&timestruct, (char*)buf);
+    buf[10]=0;//separate date from time
+    lcd.setCursor(0, 3);
+    lcd.print((char*)(buf+11));//time
+    lcd.setCursor(0, 4);
+    lcd.print((char*)buf);//date
+  }
 
   lcd.setCursor(0, 5);
-  lcd.print(acc);lcd.print('%');
+  lcd.print('B');lcd.print(acc);
 
 
   dlog.ssecs = millis()/1000;
@@ -276,7 +287,7 @@ void loop() {
   buf[1] = 0xAF;
   buf[2] = 0;    //command code
   buf[3] = 0;    //status
-  buf[4] = 99;   //battery
+  buf[4] = acc;   //battery
   btSerial.write(buf,5);
   delay(50);  //not sure why these delays are needed... but there's sometimes garbage in BT channel otherwise
   btSerial.write((byte*)&lastLogIdx, 4); //log index
