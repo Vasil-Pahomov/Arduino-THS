@@ -71,8 +71,6 @@ bool ensureInit() {
   return true;
 }
 
-
-
 bool writeLog(DLog* rec)
 {
   if (!ensureInit()) {
@@ -92,6 +90,10 @@ bool writeLog(DLog* rec)
     if (filesize > sizeof(DLog)*RECS_PER_FILE) {
       //assume file counter never overruns. once data is written every 10 seconds and single file has 10000 records, 16-bit number should overrun in almost 200 years of continous operation
       curFileNum++;
+      fname = String(curFileNum);
+      if (SD.exists(fname)) {
+        SD.remove(fname);
+      }
   #ifdef DEBUG
       Serial.print(F("SD: increasing file count to "));Serial.println(curFileNum);
   #endif      
@@ -124,10 +126,23 @@ bool writeLog(DLog* rec)
   file.close(); 
 
   lastLogIdx = curFileNum * RECS_PER_FILE + filesize / sizeof(DLog);
+#ifdef DEBUG
+  Serial.print(F("SD: written "));Serial.print(lastLogIdx);Serial.print(F(" rec to file"));Serial.println(curFileNum);
+#endif      
   
   return true;
 }
 
-
-
-
+//resets file number so that all previous content of SD card starts being overwritten anew
+void sdReset() {
+  curFileNum = 0;
+  updateIndexFile();
+  String fname = String(curFileNum);
+  if (SD.exists(fname)) {
+    SD.remove(fname);
+  }
+#ifdef DEBUG
+  Serial.println(F("SD: reset done "));
+#endif      
+     
+}

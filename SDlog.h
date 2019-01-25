@@ -20,4 +20,6 @@ typedef struct DLog {
 
 bool writeLog(DLog* rec);
 
+void sdReset();
+
 #endif

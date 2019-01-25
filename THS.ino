@@ -176,22 +176,28 @@ void loop() {
           Serial.print(F("BT: invalid sign 2nd byte"));Serial.println(buf[1]); 
 #endif        
         } 
-      } 
+      } else {
       //command received (may be partially)
-      
-      switch (buf[2]) {
-        case 0:
-          if (rcmdlen>=7) {
-            commandSync();
-            rcmdlen = 0;
-          }
-          break;
-        default:
+        
+        switch (buf[2]) {
+          case 0:
+            if (rcmdlen>=7) {
+              commandSync();
+              rcmdlen = 0;
+            }
+            break;
+          case 2:
+            if (rcmdlen>=3) {
+              sdReset();
+            }
+            break;
+          default:
 #ifdef DEBUG
-        Serial.print(F("BT: command code error "));Serial.println(buf[2]);
+            Serial.print(F("BT: command code error "));Serial.println(buf[2]);
 #endif        
-        rcmdlen=0;
-        break;
+            rcmdlen=0;
+          break;
+        }
       }
    
       

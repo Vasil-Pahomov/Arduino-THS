@@ -10,7 +10,6 @@ Number of current file being written is stored in file named 'i' (2-byte unsigne
 ## General
 Organized as asyncronous messaging protocol. That is, both phone and sensor can send messages to each other. In fact, some messages resemble classis client-server communication.
 ## Message structure
-
 | Field | Bytes | Description |
 | ----- | ----- | ----------- |
 | SGN | 2 | Signature=0xDEAF  |
@@ -21,23 +20,28 @@ Organized as asyncronous messaging protocol. That is, both phone and sensor can 
 ### Sync time
 TYPE=0x00
 Sends current time to the sensor for sync up
-
 | Field | Bytes | Description |
 | ----- | ----- | ----------- |
 | TIME | 4 | Unix timestamp |
 
 ### Read data
 TYPE=0x01
+Triggers sending data from the sensor
 
 | Field | Bytes | Description |
 | ----- | ----- | ----------- |
 | FROMIDX | 4 | Index of starting record to read (including) |
 | TOIDX | 4 | Index of ending record to read (including) |
 
+### Reset storage
+TYPE=0x02
+Resets the storage (starts writing storage data anew)
+
+The command has no body
+
 ## Sensor messages
 ### Status
 TYPE=0x00
-
 | Field | Bytes | Description |
 | ----- | ----- | ----------- |
 | STAT | 1 | Status:  0x00 if everything is OK, detailed see below |
