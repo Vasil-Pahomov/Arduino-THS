@@ -42,6 +42,7 @@ The command has no body
 ## Sensor messages
 ### Status
 TYPE=0x00
+
 | Field | Bytes | Description |
 | ----- | ----- | ----------- |
 | STAT | 1 | Status:  0x00 if everything is OK, detailed see below |
