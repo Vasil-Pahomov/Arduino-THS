@@ -20,6 +20,7 @@ Organized as asyncronous messaging protocol. That is, both phone and sensor can 
 ### Sync time
 TYPE=0x00
 Sends current time to the sensor for sync up
+
 | Field | Bytes | Description |
 | ----- | ----- | ----------- |
 | TIME | 4 | Unix timestamp |
