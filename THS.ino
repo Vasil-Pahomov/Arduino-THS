@@ -1,4 +1,4 @@
-  #include <Adafruit_NeoPixel.h>
+//#include <Adafruit_NeoPixel.h>
 
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
@@ -55,7 +55,7 @@ Adafruit_CCS811 ccs;
 //clock, data-in, data select, reset, enable
 static PCD8544 lcd(7,6,5,4,A7);
 
-
+/*
 static const byte DEGREES_CHAR = 1;
 static const byte degrees_glyph[] = { 0x00, 0x07, 0x05, 0x07, 0x00 };
 static const byte CO2_CHAR = 2;
@@ -64,6 +64,7 @@ static const byte TVOC_CHAR = 3;
 static const byte tvoc_glyph[] = { 0x18, 0x24, 0x42, 0x24, 0x18 };
 static const byte PM_CHAR = 4;
 static const byte pm_glyph[] = { 0x0a, 0x20, 0x48, 0x02, 0x24 };
+*/
 
 DLog dlog;
 
@@ -82,17 +83,17 @@ void setup() {
   lcd.begin(84, 48);
   lcd.setCursor(0, 0);
 
+/*
   lcd.createChar(DEGREES_CHAR, degrees_glyph);
   lcd.createChar(CO2_CHAR, co2_glyph);
   lcd.createChar(TVOC_CHAR, tvoc_glyph);
   lcd.createChar(PM_CHAR, pm_glyph);
-    
   lcd.print(F("Init: serial"));
+*/    
 
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
 
-  btSerial.begin(9600);
-
+  
   lcd.setCursor(0, 1);
   lcd.print(F("Init: CO2"));
 
@@ -135,6 +136,7 @@ void setup() {
   lcd.print(F("Init done"));
 
   lastms = 0;
+  btSerial.begin(9600);
 
 }
 
@@ -160,21 +162,23 @@ void loop() {
     {
       buf[rcmdlen++] = btSerial.read();
 #ifdef DEBUG
-      Serial.print(F("B("));Serial.print(rcmdlen-1);Serial.print(F(")="));Serial.println(buf[rcmdlen-1]); 
+      Serial.print(F("B("));Serial.print(rcmdlen-1);Serial.print(F(")="));Serial.print(buf[rcmdlen-1]); Serial.print(':');Serial.println((char)buf[rcmdlen-1]); 
 #endif        
-      if (rcmdlen == 0) { //looking for the beginning of the command
+      if (rcmdlen == 1) { //looking for the beginning of the command
         if (buf[0] != 0xDE) {
           rcmdlen = 0;  
 #ifdef DEBUG
           Serial.print(F("BT: invalid sign 1st byte"));Serial.println(buf[0]); 
 #endif        
+          continue;
         }
-      } else if (rcmdlen == 1) {
+      } else if (rcmdlen == 2) {
         if (buf[1] != 0xAF) {
           rcmdlen = 0;
 #ifdef DEBUG
           Serial.print(F("BT: invalid sign 2nd byte"));Serial.println(buf[1]); 
 #endif        
+          continue;
         } 
       } else {
       //command received (may be partially)
@@ -186,9 +190,16 @@ void loop() {
               rcmdlen = 0;
             }
             break;
+          case 1:
+            if (rcmdlen>=11) {
+              sdTransmitData(&btSerial);
+              rcmdlen = 0;
+            }
+            break;
           case 2:
             if (rcmdlen>=3) {
               sdReset();
+              rcmdlen = 0;
             }
             break;
           default:
@@ -210,7 +221,7 @@ void loop() {
 #endif        
         rcmdlen = 0;  
     }    
-  
+  /**/
   }
   lastms = millis();
   
@@ -299,8 +310,6 @@ void loop() {
   btSerial.write((byte*)&lastLogIdx, 4); //log index
   delay(50);  
   btSerial.write((byte*)&dlog.data, sizeof(Data)); //data
-  
-  
   
   /**/
 }

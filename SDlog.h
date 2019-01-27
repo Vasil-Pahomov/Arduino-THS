@@ -22,4 +22,6 @@ bool writeLog(DLog* rec);
 
 void sdReset();
 
+void sdTransmitData(SoftwareSerial *btSerial);
+
 #endif
