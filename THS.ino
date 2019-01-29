@@ -146,9 +146,9 @@ void commandSync() {
 //sets LED color based on the value
 //lowval - value of blue (red in reverse) color
 //val - value to 
-void setLEDColorFromValue(int lowval, int midval, int highval, int val, bool reverse, bool flash)
-{
-}
+//void setLEDColorFromValue(int lowval, int midval, int highval, int val, bool reverse, bool flash)
+//{
+//}
 
 void loop() {
   btSerial.listen();
@@ -226,7 +226,6 @@ void loop() {
   float bmeHum = bme.readHumidity();
 
   unsigned int ppm = mh_getPPM();
-  unsigned int sec = millis()/1000;
   
   ccs.setEnvironmentalData((int)bmeHum, bmeTemp);
   int ppb = -3;//data not available

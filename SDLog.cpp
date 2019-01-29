@@ -6,7 +6,7 @@
 
 #define SD_CS_PIN 10 //CS pin of the SD card
 #define INDEX_FILE_NAME F("i")
-#define RECS_PER_FILE 5 //records per file
+#define RECS_PER_FILE 1000 //records per file
 #define MAX_FILES_COUNT 4000 //this results in less than 1 gig in the total files size and stores data for 10 years of continous operation - seems appropriate
 #define DEBUG
 
@@ -48,7 +48,7 @@ bool ensureInit() {
 #endif
       curFileNum = 0;
       if (!updateIndexFile()) {
-        return;
+        return false;
       }
     } else {
 #ifdef DEBUG
@@ -100,7 +100,7 @@ bool writeLog(DLog* rec)
       Serial.print(F("SD: increasing file count to "));Serial.println(curFileNum);
   #endif      
       if (!updateIndexFile()) {
-        return;
+        return false;
       }
   #ifdef DEBUG
       Serial.print(F("SD: checking file count "));Serial.print(curFileNum);Serial.print('/');Serial.println(MAX_FILES_COUNT);
