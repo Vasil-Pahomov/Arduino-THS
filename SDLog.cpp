@@ -148,14 +148,27 @@ void sdReset() {
 #endif      
 }
 
-void sdTransmitData(SoftwareSerial *btSerial) {
+void sdTransmitData() {
   uint32_t cIdx = *((uint32_t*) (buf + 3));
   uint32_t toIdx = *((uint32_t*) (buf + 7));
+  
   int fileIdx = cIdx / RECS_PER_FILE;
   int recIdx = cIdx % RECS_PER_FILE;
 #ifdef DEBUG
-        Serial.print(F("SD: read data request"));Serial.print(cIdx);Serial.print('-');Serial.print(toIdx);Serial.print(F(", file/rec="));Serial.print(fileIdx);Serial.print('/');Serial.println(recIdx);
-#endif        
+  Serial.print(F("SD: read data request"));Serial.print(cIdx);Serial.print('-');Serial.print(toIdx);Serial.print(F(", file/rec="));Serial.print(fileIdx);Serial.print('/');Serial.println(recIdx);
+#endif
+
+//once I uncomment one of these lines below, the receiving data by bluetooth stops working!
+//I don't know WTF is here
+  if (lastLogIdx == 0xFFFFFFFF) {
+#ifdef DEBUG
+//  Serial.println(F("SD: read data request rejected, no data (yet)"));
+#endif
+//    return;
+  }
+
+  btSerial.write(buf,11);
+  
 
   bool firstRecord = true;
   String fname = String(fileIdx);
@@ -182,11 +195,11 @@ void sdTransmitData(SoftwareSerial *btSerial) {
     firstRecord = false;
 
     //transmitting the record
-    if (file.read(buf, sizeof(DLog))) {
+    if (file.read(buf, sizeof(Data))) {
 #ifdef DEBUG
       Serial.print(F("SD: transmitting rec "));Serial.print(recIdx);Serial.print(F(" of file "));Serial.print(fname);Serial.print(' ');Serial.print(cIdx);Serial.print('/');Serial.println(toIdx);
 #endif        
-      btSerial->write(buf, sizeof(DLog));
+      btSerial.write(buf, sizeof(Data));
     } else {
 #ifdef DEBUG
         Serial.print(F("SD: error reading file "));Serial.println(fname);
@@ -210,6 +223,6 @@ void sdTransmitData(SoftwareSerial *btSerial) {
   }
   file.close();
 #ifdef DEBUG
-  Serial.print(F("SD: Transmission done "));Serial.println(fname);
+  Serial.println(F("SD: Transmission done "));
 #endif        
 }

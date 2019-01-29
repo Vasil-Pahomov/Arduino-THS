@@ -55,7 +55,6 @@ Adafruit_CCS811 ccs;
 //clock, data-in, data select, reset, enable
 static PCD8544 lcd(7,6,5,4,A7);
 
-/*
 static const byte DEGREES_CHAR = 1;
 static const byte degrees_glyph[] = { 0x00, 0x07, 0x05, 0x07, 0x00 };
 static const byte CO2_CHAR = 2;
@@ -64,7 +63,6 @@ static const byte TVOC_CHAR = 3;
 static const byte tvoc_glyph[] = { 0x18, 0x24, 0x42, 0x24, 0x18 };
 static const byte PM_CHAR = 4;
 static const byte pm_glyph[] = { 0x0a, 0x20, 0x48, 0x02, 0x24 };
-*/
 
 DLog dlog;
 
@@ -82,14 +80,11 @@ void setup() {
   // PCD8544-compatible displays may have a different resolution...
   lcd.begin(84, 48);
   lcd.setCursor(0, 0);
-
-/*
   lcd.createChar(DEGREES_CHAR, degrees_glyph);
   lcd.createChar(CO2_CHAR, co2_glyph);
   lcd.createChar(TVOC_CHAR, tvoc_glyph);
   lcd.createChar(PM_CHAR, pm_glyph);
   lcd.print(F("Init: serial"));
-*/    
 
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
 
@@ -168,7 +163,7 @@ void loop() {
         if (buf[0] != 0xDE) {
           rcmdlen = 0;  
 #ifdef DEBUG
-          Serial.print(F("BT: invalid sign 1st byte"));Serial.println(buf[0]); 
+          Serial.print(F("BT: invalid sign 1st byte: "));Serial.println(buf[0]); 
 #endif        
           continue;
         }
@@ -176,7 +171,7 @@ void loop() {
         if (buf[1] != 0xAF) {
           rcmdlen = 0;
 #ifdef DEBUG
-          Serial.print(F("BT: invalid sign 2nd byte"));Serial.println(buf[1]); 
+          Serial.print(F("BT: invalid sign 2nd byte: "));Serial.println(buf[1]); 
 #endif        
           continue;
         } 
@@ -192,7 +187,7 @@ void loop() {
             break;
           case 1:
             if (rcmdlen>=11) {
-              sdTransmitData(&btSerial);
+              sdTransmitData();
               rcmdlen = 0;
             }
             break;
