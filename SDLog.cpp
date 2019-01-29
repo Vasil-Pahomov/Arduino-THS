@@ -17,6 +17,7 @@ uint32_t lastLogIdx = 0xFFFFFFFF;
 
 bool updateIndexFile()
 {
+  SD.remove(INDEX_FILE_NAME);
   file = SD.open(INDEX_FILE_NAME, FILE_WRITE);
   if (!file) {
 #ifdef DEBUG
@@ -24,7 +25,6 @@ bool updateIndexFile()
 #endif      
     return false;
   }
-  file.seek(0);
   file.write((uint8_t*)&curFileNum,2);
   file.close(); 
   return true;
