@@ -14,7 +14,7 @@
 #include "pms5003.h"
 
 #define DEBUG
-#define READ_INTERVAL_MS 10000
+#define READ_INTERVAL_MS 20000
 #define BT_TIMEOUT_MS 2000
 #define BACKLIGHT_PIN 3
 
@@ -53,7 +53,7 @@ Adafruit_CCS811 ccs;
 
 
 //clock, data-in, data select, reset, enable
-static PCD8544 lcd(7,6,5,4,A7);
+PCD8544 lcd(7,6,5,4,A7);
 
 static const byte DEGREES_CHAR = 1;
 static const byte degrees_glyph[] = { 0x00, 0x07, 0x05, 0x07, 0x00 };
@@ -187,7 +187,14 @@ void loop() {
             break;
           case 1:
             if (rcmdlen>=11) {
-              sdTransmitData();
+              if (rtimebase !=0) {
+                sdTransmitData();
+              } else
+              {
+#ifdef DEBUG
+                Serial.print(F("No sync - no transmission"));
+#endif        
+              }
               rcmdlen = 0;
             }
             break;
@@ -289,7 +296,7 @@ void loop() {
   dlog.data.pm25 = pms_pm2_5_cf1;
   dlog.data.pm10 = pms_pm10_cf1;
   dlog.data.tvoc = ppb;
-  
+
   writeLog(&dlog);
 
   //writing binary data to the bluetooth

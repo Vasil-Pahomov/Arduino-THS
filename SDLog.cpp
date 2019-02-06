@@ -167,8 +167,10 @@ void sdTransmitData() {
 //    return;
   }
 
+  lcd.clear();
   btSerial.write(buf,11);
-  
+
+  long lastmst = millis();
 
   bool firstRecord = true;
   String fname = String(fileIdx);
@@ -176,7 +178,7 @@ void sdTransmitData() {
     if (firstRecord) {
       // the very first record for transmitting
 #ifdef DEBUG
-        Serial.print(F("SD: opening first file / at pos:"));Serial.print(fname);Serial.print('/');Serial.println(recIdx * sizeof(DLog));
+//        Serial.print(F("SD: opening first file / at pos:"));Serial.print(fname);Serial.print('/');Serial.println(recIdx * sizeof(DLog));
 #endif        
       file = SD.open(fname, FILE_READ);
       if (!file) {
@@ -195,11 +197,11 @@ void sdTransmitData() {
     firstRecord = false;
 
     //transmitting the record
-    if (file.read(buf, sizeof(Data))) {
-#ifdef DEBUG
-      Serial.print(F("SD: transmitting rec "));Serial.print(recIdx);Serial.print(F(" of file "));Serial.print(fname);Serial.print(' ');Serial.print(cIdx);Serial.print('/');Serial.println(toIdx);
-#endif        
-      btSerial.write(buf, sizeof(Data));
+    if (file.read(buf, sizeof(DLog))) {
+      btSerial.write(buf, sizeof(DLog));
+      if (millis() > lastmst + 1000);
+      lcd.setCursor(0,0);
+      lcd.print(cIdx);lcd.print('/');lcd.print(toIdx);
     } else {
 #ifdef DEBUG
         Serial.print(F("SD: error reading file "));Serial.println(fname);
@@ -210,12 +212,12 @@ void sdTransmitData() {
     if (recIdx >= RECS_PER_FILE) {
       //jumping to the next file
       file.close();
+      fileIdx++;
       fname = String(fileIdx);
       file = SD.open(fname, FILE_READ);
-      fileIdx++;
       recIdx = 0;
 #ifdef DEBUG
-      Serial.print(F("SD: Jumping to next file "));Serial.println(fname);
+//      Serial.print(F("SD: Jumping to next file "));Serial.println(fname);
 #endif        
     }
     
@@ -223,6 +225,6 @@ void sdTransmitData() {
   }
   file.close();
 #ifdef DEBUG
-  Serial.println(F("SD: Transmission done "));
+//  Serial.println(F("SD: Transmission done "));
 #endif        
 }
