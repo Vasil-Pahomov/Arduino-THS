@@ -40,6 +40,12 @@ Resets the storage (starts writing storage data anew)
 
 The command has no body
 
+### Calibrate CO2 sensor
+TYPE=0x03
+Sends calibration command to CO2 sensor. The sensor MUST be at least 20 minutes at open air environment (400 PPM).
+
+The command has no body
+
 ## Sensor messages
 ### Status
 TYPE=0x00
