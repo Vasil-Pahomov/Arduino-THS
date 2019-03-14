@@ -18,32 +18,6 @@
 #define BT_TIMEOUT_MS 2000
 #define BACKLIGHT_PIN 3
 
-//todo: move values to config (EEPROM)
-#define LED_TEMP_NUM 0        //number of LED showing temperature
-#define LED_TEMP_BLU 18       //lowest temperature, blue color
-#define LED_TEMP_GRN 22       //normal temperature, green color
-#define LED_TEMP_RED 27       //highest temperature, red color
-
-#define LED_HUM_NUM 1         //number of LED showing humidity
-#define LED_HUM_RED 20        //lowest humidity, red color
-#define LED_HUM_GRN 50        //normal humidity, green color
-#define LED_HUM_BLU 80        //highest humidity, blue color
-
-#define LED_CO2_NUM 2         //number of LED showing CO2
-#define LED_CO2_BLU 400       //lowest ppm, blue color
-#define LED_CO2_GRN 600       //"normal" ppm, green color
-#define LED_CO2_RED 2000      //highest ppm, red color
-
-#define LED_PM_NUM 3         //number of LED showing PM
-#define LED_PM_BLU 30        //lowest PM, blue color
-#define LED_PM_GRN 100       //"normal" PM, green color
-#define LED_PM_RED 300       //highest PM, red color
-
-#define LED_VOC_NUM 4         //number of LED showing VOC
-#define LED_VOC_BLU 0        //lowest VOC, blue color
-#define LED_VOC_GRN 30       //"normal" VOC, green color
-#define LED_VOC_RED 100       //highest VOC, red color
-
 byte buf[32];
 
 SoftwareSerial btSerial(8,9);
@@ -54,15 +28,6 @@ Adafruit_CCS811 ccs;
 
 //clock, data-in, data select, reset, enable
 PCD8544 lcd(7,6,5,4,A7);
-
-static const byte DEGREES_CHAR = 1;
-static const byte degrees_glyph[] = { 0x00, 0x07, 0x05, 0x07, 0x00 };
-static const byte CO2_CHAR = 2;
-static const byte co2_glyph[] = { 0x06, 0x3e, 0x3c, 0x7c, 0x60 };
-static const byte TVOC_CHAR = 3;
-static const byte tvoc_glyph[] = { 0x18, 0x24, 0x42, 0x24, 0x18 };
-static const byte PM_CHAR = 4;
-static const byte pm_glyph[] = { 0x0a, 0x20, 0x48, 0x02, 0x24 };
 
 DLog dlog;
 
@@ -80,10 +45,6 @@ void setup() {
   // PCD8544-compatible displays may have a different resolution...
   lcd.begin(84, 48);
   lcd.setCursor(0, 0);
-  lcd.createChar(DEGREES_CHAR, degrees_glyph);
-  lcd.createChar(CO2_CHAR, co2_glyph);
-  lcd.createChar(TVOC_CHAR, tvoc_glyph);
-  lcd.createChar(PM_CHAR, pm_glyph);
   lcd.print(F("Init: serial"));
 
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
@@ -143,13 +104,6 @@ void commandSync() {
 #endif   
 }
 
-//sets LED color based on the value
-//lowval - value of blue (red in reverse) color
-//val - value to 
-//void setLEDColorFromValue(int lowval, int midval, int highval, int val, bool reverse, bool flash)
-//{
-//}
-
 void loop() {
   btSerial.listen();
   while (lastms != 0 && (millis() < lastms + READ_INTERVAL_MS)) {
@@ -201,6 +155,12 @@ void loop() {
           case 2:
             if (rcmdlen>=3) {
               sdReset();
+              rcmdlen = 0;
+            }
+            break;
+          case 3:
+            if (rcmdlen>=3) {
+              mh_calibrate();
               rcmdlen = 0;
             }
             break;
@@ -261,13 +221,13 @@ void loop() {
   digitalWrite(LED_BUILTIN, LOW);
 
   lcd.setCursor(0, 0);
-  lcd.print(bmeTemp);lcd.print((char)1);
+  lcd.print(bmeTemp);lcd.print('C');
   lcd.setCursor(42, 0);
   lcd.print(bmeHum);lcd.print('%');
   lcd.setCursor(0, 1);
-  lcd.print(ppm);lcd.print((char)2);
+  lcd.print(ppm);lcd.print('@');
   lcd.setCursor(42, 1);
-  lcd.print(ppb);lcd.print((char)3);
+  lcd.print(ppb);lcd.print('%');
   lcd.setCursor(0, 2);
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print((char)4);
 

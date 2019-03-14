@@ -5,7 +5,6 @@
 //#define DEBUG
 SoftwareSerial mhSerial(A3, A2); // A0 - Рє TX СЃРµРЅСЃРѕСЂР°, A1 - Рє RX
 
-byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
 
 void mh_setup() {
   mhSerial.begin(9600);
@@ -31,8 +30,9 @@ void mh_setup() {
 
 unsigned int mh_getPPM() 
 {  
+  byte get_cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
   mhSerial.listen();
-  mhSerial.write(cmd, 9);
+  mhSerial.write(get_cmd, 9);
   memset(buf, 0, 9);
   mhSerial.readBytes(buf, 9);
   int i;
@@ -57,3 +57,8 @@ unsigned int mh_getPPM()
   }
 }
 
+void mh_calibrate() {
+  byte cal_cmd[9] = {0xFF,0x01,0x87,0x00,0x00,0x00,0x00,0x00,0x78}; 
+  mhSerial.write(cal_cmd, 9);
+  mhSerial.listen();
+}
