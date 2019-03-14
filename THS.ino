@@ -1,5 +1,3 @@
-//#include <Adafruit_NeoPixel.h>
-
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
 #include <SoftwareSerial.h> //one SoftwareSerial uses 126 bytes on clean sketch, two - 157 bytes
@@ -23,7 +21,6 @@ byte buf[32];
 SoftwareSerial btSerial(8,9);
 Adafruit_BME280 bme;
 Adafruit_CCS811 ccs;
-//Adafruit_NeoPixel pixels = Adafruit_NeoPixel(5, 2, NEO_GRB + NEO_KHZ800); 
 
 
 //clock, data-in, data select, reset, enable
@@ -137,12 +134,14 @@ void loop() {
             if (rcmdlen>=7) {
               commandSync();
               rcmdlen = 0;
+              lastms = millis() - READ_INTERVAL_MS;
             }
             break;
           case 1:
             if (rcmdlen>=11) {
               if (rtimebase !=0) {
                 sdTransmitData();
+                lastms = millis() - READ_INTERVAL_MS;
               } else
               {
 #ifdef DEBUG
@@ -156,12 +155,14 @@ void loop() {
             if (rcmdlen>=3) {
               sdReset();
               rcmdlen = 0;
-            }
+              lastms = millis() - READ_INTERVAL_MS;
+          }
             break;
           case 3:
             if (rcmdlen>=3) {
               mh_calibrate();
               rcmdlen = 0;
+              lastms = millis() - READ_INTERVAL_MS;
             }
             break;
           default:
@@ -227,9 +228,9 @@ void loop() {
   lcd.setCursor(0, 1);
   lcd.print(ppm);lcd.print('@');
   lcd.setCursor(42, 1);
-  lcd.print(ppb);lcd.print('%');
+  lcd.print(ppb);lcd.print('#');
   lcd.setCursor(0, 2);
-  lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print((char)4);
+  lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print('*');
 
 
   if (rtimebase != 0) {

@@ -170,7 +170,7 @@ void sdTransmitData() {
   lcd.clear();
   btSerial.write(buf,11);
 
-  long lastmst = millis();
+  long lastmst = millis() - 10000;
 
   bool firstRecord = true;
   String fname = String(fileIdx);
@@ -199,9 +199,11 @@ void sdTransmitData() {
     //transmitting the record
     if (file.read(buf, sizeof(DLog))) {
       btSerial.write(buf, sizeof(DLog));
-      if (millis() > lastmst + 1000);
-      lcd.setCursor(0,0);
-      lcd.print(cIdx);lcd.print('/');lcd.print(toIdx);
+      if (millis() > lastmst + 500) {
+        lcd.setCursor(0,0);
+        lcd.print(cIdx);lcd.print('/');lcd.print(toIdx);
+        lastmst = millis();
+      }
     } else {
 #ifdef DEBUG
         Serial.print(F("SD: error reading file "));Serial.println(fname);
