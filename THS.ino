@@ -32,6 +32,8 @@ uint32_t lastms;//last millis() data was read, used to track intervals between r
 uint32_t long rtimebase;//UNIX time of sensor start, calculates every time STATUS command is received
 uint8_t rcmdlen;//length of currently receiving command
 uint32_t lastmsbt;//last millis() BT was read, used to track BT timeout
+int batcnt;//counter of battery measurements during "idle" cycle
+uint32_t batacc;//"accumulator" of battery measurements
 
 tm timestruct;
 
@@ -103,6 +105,8 @@ void commandSync() {
 
 void loop() {
   btSerial.listen();
+  batcnt = 0;
+  batacc = 0;
   while (lastms != 0 && (millis() < lastms + READ_INTERVAL_MS)) {
     while (btSerial.available() > 0)
     {
@@ -184,7 +188,9 @@ void loop() {
 #endif        
         rcmdlen = 0;  
     }    
-  /**/
+    batacc += analogRead(A6);
+    batcnt++;
+    delay(100);
   }
   lastms = millis();
   
@@ -216,7 +222,7 @@ void loop() {
   pms_read();
 
   
-  int acc=(analogRead(A6)-700)/3;
+  int acc=(batcnt != 0) ? (batacc/batcnt-700)/3 : 255;
 
   lcd.clear();
   digitalWrite(LED_BUILTIN, LOW);
@@ -245,7 +251,7 @@ void loop() {
   }
 
   lcd.setCursor(0, 5);
-  lcd.print('B');lcd.print(acc);
+  lcd.print('B');lcd.print(acc);lcd.print('%');
 
 
   dlog.ssecs = millis()/1000;
