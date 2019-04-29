@@ -33,7 +33,7 @@ uint32_t long rtimebase;//UNIX time of sensor start, calculates every time STATU
 uint8_t rcmdlen;//length of currently receiving command
 uint32_t lastmsbt;//last millis() BT was read, used to track BT timeout
 int batcnt;//counter of battery measurements during "idle" cycle
-uint32_t batacc;//"accumulator" of battery measurements
+long batacc;//"accumulator" of battery measurements
 
 tm timestruct;
 
@@ -221,8 +221,17 @@ void loop() {
 
   pms_read();
 
+  //950 - 100%
+  //700 - 0% (на 5 минут)
+  int acc;
+  if (batcnt == 0) {
+    acc = 255;
+  } else {
+    acc=(batacc/batcnt-700)*2/5;
+    if (acc > 100) acc = 100;
+    if (acc < 0) acc = 0;
+  }
   
-  int acc=(batcnt != 0) ? (batacc/batcnt-700)/3 : 255;
 
   lcd.clear();
   digitalWrite(LED_BUILTIN, LOW);
@@ -250,8 +259,10 @@ void loop() {
     lcd.print((char*)buf);//date
   }
 
-  lcd.setCursor(0, 5);
-  lcd.print('B');lcd.print(acc);lcd.print('%');
+  if (acc != 255) {
+    lcd.setCursor(0, 5);
+    lcd.print('B');lcd.print(acc);lcd.print('%');
+  }
 
 
   dlog.ssecs = millis()/1000;
