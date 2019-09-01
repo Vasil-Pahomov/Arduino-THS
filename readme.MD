@@ -1,5 +1,17 @@
 # General
-This is Arduno-based air quality sensor and logger. More details will come later.
+This is Arduno-based air quality sensor and logger.
+The following air quality parameters are measured:
+- Temperature
+- Humidity
+- CO2 level
+- total volatile organic compound (TVOC) level
+- particle matter PM1.0, PM2.5 and PM10 levels
+
+# Circuit
+!(https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/sch.png)
+
+# Android companion
+https://github.com/Vasil-Pahomov/AQS-Android
 
 # Log file format
 Files are numbered starting from 0.log. Each file 10000 records. Record structure is defined in SDLog.h.
