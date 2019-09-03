@@ -1,5 +1,32 @@
 # General
-This is Arduno-based air quality sensor and logger. More details will come later.
+This is Arduno-based air quality sensor and logger.
+The following air quality parameters are measured:
+- Temperature
+- Humidity
+- CO2 level
+- total volatile organic compound (TVOC) level
+- particle matter (dust) PM1.0, PM2.5 and PM10 levels
+
+It can be powered either with batteries (I used 18560 recharge lithium) or with USB power supply.
+The sensor stores data on MicroSD card and is able to download it to companion application with Bluetooth. An Android companion is designed: https://github.com/Vasil-Pahomov/AQS-Android or https://github.com/AlexeyKatsuro/ABTEx
+
+# Circuit
+![Circuit diagram](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/sch.png)
+
+# Part list
+
+| Part | Image |
+| ---- | ----- |
+| Arduino Pro Mini (3.3V) | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/Arduino%20Pro%20Mini.jpg) |
+| BME280 temperature and humidity sensor board | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/BME280.jpg) |
+| MH-Z19B CO2 sensor | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/MH-Z19b.jpg) |
+| CCS811 TVOC sensor board | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/CCS811.jpg) |
+| PMS5003 dust sensor | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/PMS5003.jpg) |
+| Nokia 5110 LCD | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/Nokia%205110%20display.jpg) |
+| HC-06 bluetooth board | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/HC-06.jpg) |
+| TP4056 charger board | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/TP4056%20board.jpg) |
+| 5V boost converter | ![](https://github.com/Vasil-Pahomov/Arduino-THS/raw/master/pics/5V%20boost%20converter.jpg) |
+
 
 # Log file format
 Files are numbered starting from 0.log. Each file 10000 records. Record structure is defined in SDLog.h.
