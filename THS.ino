@@ -10,6 +10,7 @@
 
 #include "mh_z19.h"
 #include "pms5003.h"
+#include "heiger.h"
 
 #define DEBUG
 #define READ_INTERVAL_MS 20000
@@ -87,6 +88,8 @@ void setup() {
   //todo: check for PMS setup error
   pms_setup();
   analogWrite(BACKLIGHT_PIN,10);
+
+  heiger_setup();
   lcd.setCursor(0, 5);
   lcd.print(F("Init done"));
 
@@ -221,6 +224,8 @@ void loop() {
 
   pms_read();
 
+  float rad = heiger_getRadiation();
+
   //950 - 100%
   //700 - 0% (на 5 минут)
   int acc;
@@ -246,6 +251,7 @@ void loop() {
   lcd.print(ppb);lcd.print('#');
   lcd.setCursor(0, 2);
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print('*');
+  lcd.setCursor(42,3); lcd.print(rad); lcd.print('R');
 
 
   if (rtimebase != 0) {
@@ -253,14 +259,14 @@ void loop() {
     gmtime_r(&ttime, &timestruct);
     isotime_r(&timestruct, (char*)buf);
     buf[10]=0;//separate date from time
-    lcd.setCursor(0, 3);
-    lcd.print((char*)(buf+11));//time
     lcd.setCursor(0, 4);
+    lcd.print((char*)(buf+11));//time
+    lcd.setCursor(0, 5);
     lcd.print((char*)buf);//date
   }
 
   if (acc != 255) {
-    lcd.setCursor(0, 5);
+    lcd.setCursor(0, 3);
     lcd.print('B');lcd.print(acc);lcd.print('%');
   }
 
@@ -274,6 +280,7 @@ void loop() {
   dlog.data.pm25 = pms_pm2_5_cf1;
   dlog.data.pm10 = pms_pm10_cf1;
   dlog.data.tvoc = ppb;
+  dlog.data.rad = rad*1000;
 
   writeLog(&dlog);
 

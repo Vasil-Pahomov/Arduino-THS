@@ -82,7 +82,7 @@ TYPE=0x00
 | STAT | 1 | Status:  0x00 if everything is OK, detailed see below |
 | BAT | 1 | Battery percentage |
 | LOGIDX | 4 | Number of last logged record (sequential, never overflows), returns 0xFFFFFFFF when there's SD card error |
-| DATA | sizeof(Data) | Last sensor readings, Data structure |
+| DATA | sizeof(Data) | Last sensor readings, Data structure (see Data.h) |
 
 #### Status byte
 Zero value means OK, one - failure

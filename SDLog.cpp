@@ -127,7 +127,7 @@ bool writeLog(DLog* rec)
   file.write((uint8_t*)rec, sizeof(DLog));
   file.close(); 
 
-  lastLogIdx = curFileNum * RECS_PER_FILE + filesize / sizeof(DLog);
+  lastLogIdx = (long)curFileNum * RECS_PER_FILE + filesize / sizeof(DLog);
 #ifdef DEBUG
   Serial.print(F("SD: written rec #"));Serial.print(lastLogIdx);Serial.print(F(" to file #"));Serial.println(curFileNum);
 #endif      

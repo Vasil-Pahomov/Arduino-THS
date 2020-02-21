@@ -25,6 +25,10 @@ typedef struct Data {
 
    //TVOC reading, ppd
    uint16_t tvoc;
+
+   //radiation value, 1000*uSv/h (nSv/h)
+   uint16_t rad;
+   
    
 } Data;
 
