@@ -49,7 +49,6 @@ void setup() {
 
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
 
-  
   lcd.setCursor(0, 1);
   lcd.print(F("Init: CO2"));
 
