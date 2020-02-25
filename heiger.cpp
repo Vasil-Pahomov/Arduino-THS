@@ -11,7 +11,7 @@
 #define DBGLN Serial.println();
 
 #define HEIGER_PIN 2
-#define MAX_SLOTS 25  
+#define MAX_SLOTS 20  
 
 //this is FIFO array of the measurements
 //new measurement goes into the last element of the array; previous elements are shifted to smaller index (e.g. 3th element shifts to 2)
