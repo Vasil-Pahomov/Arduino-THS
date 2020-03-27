@@ -1,3 +1,7 @@
+#define SERIAL_BUFFER_SIZE 32
+#define _SS_MAX_RX_BUFF 32 
+
+
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
 #include <SoftwareSerial.h> //one SoftwareSerial uses 126 bytes on clean sketch, two - 157 bytes
@@ -47,7 +51,9 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print(F("Init: serial"));
 
+#ifdef DEBUG
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
+#endif
 
   lcd.setCursor(0, 1);
   lcd.print(F("Init: CO2"));

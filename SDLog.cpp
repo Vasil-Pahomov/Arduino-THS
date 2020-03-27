@@ -8,7 +8,7 @@
 #define INDEX_FILE_NAME F("i")
 #define RECS_PER_FILE 1000 //records per file
 #define MAX_FILES_COUNT 4000 //this results in less than 1 gig in the total files size and stores data for 10 years of continous operation - seems appropriate
-#define DEBUG //note that disabling it without modifying all other code results in disabling UART reception from Bluetooth module. Seems like magic
+//#define DEBUG //note that disabling it without modifying all other code results in disabling UART reception from Bluetooth module. Seems like magic
 
 File file;
 //number of current file being written, initial value means it's not initialized yet

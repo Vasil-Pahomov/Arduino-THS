@@ -52,6 +52,7 @@ float heiger_getRadiation()
 {
   //shift and adjust all slots
   int secsSinceLast = (millis() - heiger_lastms) / 1000;
+  if (secsSinceLast < 60) return heiger_rad;//single measurement should last 1 minute at least
   heiger_lastms = millis();
   int cnt = heiger_count;
   heiger_count = 0;
