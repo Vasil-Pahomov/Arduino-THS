@@ -1,6 +1,7 @@
+#include <Arduino.h>
+
 #define SERIAL_BUFFER_SIZE 32
 #define _SS_MAX_RX_BUFF 32 
-
 
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
