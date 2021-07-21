@@ -1,37 +1,37 @@
-#include <SPI.h>
-#include <SD.h>
-#include <SoftwareSerial.h>
+#include <SdFat.h>
 #include "global.h"
 #include "SDlog.h"
 
 #define SD_CS_PIN 10 //CS pin of the SD card
-#define INDEX_FILE_NAME F("i")
-#define RECS_PER_FILE 1000 //records per file
-#define MAX_FILES_COUNT 4000 //this results in less than 1 gig in the total files size and stores data for 10 years of continous operation - seems appropriate
+
+//sector 0 keeps index information:
+//bytes 0 to 3 (32-bit word) keeps log record index that will be written no
+//assuming sectors will never overrru: about 1 GB holds data for 10 years of continous operation - seems appropriate
+#define SECTOR_SIZE 512 //in bytes
+#define RECS_PER_FILE SECTOR_SIZE/sizeof(DLog) //records per file
 //#define DEBUG //note that disabling it without modifying all other code results in disabling UART reception from Bluetooth module. Seems like magic
 
-File file;
-//number of current file being written, initial value means it's not initialized yet
-uint16_t curFileNum = 0xFFFF;
+SdCard SD;
+//number of log record that will be being written; initial value means it's not initialized yet
 uint32_t lastLogIdx = 0xFFFFFFFF;
+byte sd_buf[SECTOR_SIZE];
 
 bool updateIndexFile()
 {
-  SD.remove(INDEX_FILE_NAME);
-  file = SD.open(INDEX_FILE_NAME, FILE_WRITE);
-  if (!file) {
+  
+  memcpy(&lastLogIdx, sd_buf, 4);
+  if (!SD.writeSector(0, sd_buf)) {
 #ifdef DEBUG
     Serial.println(F("SD: error index writing"));
 #endif      
     return false;
   }
-  file.write((uint8_t*)&curFileNum,2);
-  file.close(); 
   return true;
 }
 
 bool ensureInit() {
-  if (curFileNum == 0xFFFF) {
+  /*
+  if (curSectorNum == 0xFFFF) {
 #ifdef DEBUG
       Serial.println(F("SD: initializing"));
 #endif
@@ -46,7 +46,7 @@ bool ensureInit() {
 #ifdef DEBUG
       Serial.println(F("SD: no index file, initializing"));
 #endif
-      curFileNum = 0;
+      curSectorNum = 0;
       if (!updateIndexFile()) {
         return false;
       }
@@ -61,28 +61,30 @@ bool ensureInit() {
 #endif      
         return false;
       }
-      file.read(&curFileNum,2);
+      file.read(&curSectorNum,2);
       file.close(); 
 #ifdef DEBUG
-      Serial.print(F("SD: index read:"));Serial.println(curFileNum);
+      Serial.print(F("SD: index read:"));Serial.println(curSectorNum);
 #endif
     }
   }
   return true;
+  */
 }
 
 bool writeLog(DLog* rec)
 {
+  /*
   if (!ensureInit()) {
     return false;
   }
-  String fname = String(curFileNum);
+  String fname = String(curSectorNum);
   long filesize = 0;
   if (SD.exists(fname)) {
     file = SD.open(fname,FILE_READ);
     if (!file) {
   #ifdef DEBUG
-      Serial.print(F("SD: error opening log "));Serial.println(curFileNum);
+      Serial.print(F("SD: error opening log "));Serial.println(curSectorNum);
   #endif      
       return false;
     }
@@ -90,26 +92,26 @@ bool writeLog(DLog* rec)
     file.close();
     if (filesize >= sizeof(DLog)*RECS_PER_FILE) {
       //assume file counter never overruns. once data is written every 10 seconds and single file has 10000 records, 16-bit number should overrun in almost 200 years of continous operation
-      curFileNum++;
-      fname = String(curFileNum);
+      curSectorNum++;
+      fname = String(curSectorNum);
       if (SD.exists(fname)) {
         SD.remove(fname);
       }
       filesize = 0;
   #ifdef DEBUG
-      Serial.print(F("SD: increasing file count to "));Serial.println(curFileNum);
+      Serial.print(F("SD: increasing file count to "));Serial.println(curSectorNum);
   #endif      
       if (!updateIndexFile()) {
         return false;
       }
   #ifdef DEBUG
-      Serial.print(F("SD: checking file count "));Serial.print(curFileNum);Serial.print('/');Serial.println(MAX_FILES_COUNT);
+      Serial.print(F("SD: checking file count "));Serial.print(curSectorNum);Serial.print('/');Serial.println(MAX_FILES_COUNT);
   #endif           
-      if (curFileNum >= MAX_FILES_COUNT) {
+      if (curSectorNum >= MAX_FILES_COUNT) {
   #ifdef DEBUG
-      Serial.print(F("SD: removing tail file "));Serial.println(curFileNum - MAX_FILES_COUNT);
+      Serial.print(F("SD: removing tail file "));Serial.println(curSectorNum - MAX_FILES_COUNT);
   #endif       
-        if (!SD.remove(String(curFileNum - MAX_FILES_COUNT))) {
+        if (!SD.remove(String(curSectorNum - MAX_FILES_COUNT))) {
   #ifdef DEBUG
       Serial.println(F("SD: error removing tail file"));
   #endif      
@@ -120,35 +122,39 @@ bool writeLog(DLog* rec)
   file = SD.open(fname,FILE_WRITE);
   if (!file) {
 #ifdef DEBUG
-    Serial.print(F("SD: error writing log "));Serial.println(curFileNum);
+    Serial.print(F("SD: error writing log "));Serial.println(curSectorNum);
 #endif      
     return false;
   }
   file.write((uint8_t*)rec, sizeof(DLog));
   file.close(); 
 
-  lastLogIdx = (long)curFileNum * RECS_PER_FILE + filesize / sizeof(DLog);
+  lastLogIdx = (long)curSectorNum * RECS_PER_FILE + filesize / sizeof(DLog);
 #ifdef DEBUG
-  Serial.print(F("SD: written rec #"));Serial.print(lastLogIdx);Serial.print(F(" to file #"));Serial.println(curFileNum);
+  Serial.print(F("SD: written rec #"));Serial.print(lastLogIdx);Serial.print(F(" to file #"));Serial.println(curSectorNum);
 #endif      
   
   return true;
+  */
 }
 
 //resets file number so that all previous content of SD card starts being overwritten anew
 void sdReset() {
-  curFileNum = 0;
+  /*
+  curSectorNum = 0;
   updateIndexFile();
-  String fname = String(curFileNum);
+  String fname = String(curSectorNum);
   if (SD.exists(fname)) {
     SD.remove(fname);
   }
 #ifdef DEBUG
   Serial.println(F("SD: reset done "));
 #endif      
+*/
 }
 
 void sdTransmitData() {
+  /*
   uint32_t cIdx = *((uint32_t*) (buf + 3));
   uint32_t toIdx = *((uint32_t*) (buf + 7));
   
@@ -229,4 +235,5 @@ void sdTransmitData() {
 #ifdef DEBUG
 //  Serial.println(F("SD: Transmission done "));
 #endif        
+*/
 }

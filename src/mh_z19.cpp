@@ -11,6 +11,7 @@ void mh_setup() {
   byte icmd[9] = {0xFF, 0x01, 0x99, 0x00, 0x00, 0x00, 0x13, 0x88, 0xCB};
 
   mhSerial.write(icmd, 9);
+  mhSerial.listen();
   memset(buf, 0, 9);
   mhSerial.readBytes(buf, 9);  
   #ifdef DEBUG
@@ -20,20 +21,21 @@ void mh_setup() {
   crc = 255 - crc;
   crc++;
   if ( !(buf[0] == 0xFF && buf[1] == 0x99 && buf[8] == crc) ) {
-    Serial.println("MH: setRange CRC error: " + String(crc) + " / "+ String(buf[0]) + "," + String(buf[1]) + ",...," +String(buf[8]));
+    Serial.print(F("MH: setRange CRC error "));
   } else
   {
-    Serial.println("MH: setRange OK");
+    Serial.print(F("MH: setRange OK: "));
   }
+  Serial.print(crc); Serial.print('/');Serial.print(buf[0]);Serial.print(','); Serial.print(buf[1]); Serial.print('-');Serial.println(buf[8]);
   #endif    
 }
 
 unsigned int mh_getPPM() 
 {  
   byte get_cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
-  mhSerial.listen();
   mhSerial.write(get_cmd, 9);
   memset(buf, 0, 9);
+  mhSerial.listen();
   mhSerial.readBytes(buf, 9);
   int i;
   byte crc = 0;
@@ -43,7 +45,8 @@ unsigned int mh_getPPM()
 
   if ( !(buf[0] == 0xFF && buf[1] == 0x86 && buf[8] == crc) ) {
     #ifdef DEBUG
-    Serial.println("MH: CRC error: " + String(crc) + " / "+ String(buf[0]) + "," + String(buf[1]) + ",...," +String(buf[8]));
+    Serial.println(F("MH: CRC error: "));
+    Serial.print(crc); Serial.print('/');Serial.print(buf[0]);Serial.print(','); Serial.print(buf[1]); Serial.print('-');Serial.println(buf[8]);
     #endif
     return 1;
   } else {
@@ -60,5 +63,7 @@ unsigned int mh_getPPM()
 void mh_calibrate() {
   byte cal_cmd[9] = {0xFF,0x01,0x87,0x00,0x00,0x00,0x00,0x00,0x78}; 
   mhSerial.write(cal_cmd, 9);
+  delay(500);
   mhSerial.listen();
+  mhSerial.readBytes(buf, 9);
 }

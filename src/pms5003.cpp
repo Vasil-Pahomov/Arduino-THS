@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include "pms5003.h"
 #include "global.h"
-//#define DEBUG
-SoftwareSerial pmsSerial(A1, A0); // A1- Рє TX СЃРµРЅСЃРѕСЂР°, A0 - Рє RX
+#define DEBUG
+SoftwareSerial pmsSerial(A1, A0); // A1- к TX сенсора, A0 - к RX
 
 unsigned int 
   pms_pm1_cf1, 
@@ -36,13 +36,15 @@ bool pms_read()
 {
   pms_cmd(PMS_CMD_READ, 0, 0);
   memset(buf,0,32);
+  pmsSerial.listen();
+  pmsSerial.setTimeout(2000);
   pmsSerial.readBytes(buf, 32);
   pms_error = false;
 
   if (buf[0] != 0x42 || buf[1] != 0x4d) {
     pms_error = true;
 #ifdef DEBUG
-    Serial.print(F("PMS read warning: signature incorrect, expecled 16973, found:"));Serial.println(intbuf(0,1));
+    Serial.print(F("PMS read warning: signature incorrect, expected 16973, found:"));Serial.println(intbuf(0,1));
 #endif
   }
   
@@ -67,7 +69,7 @@ bool pms_read()
 
 #ifdef DEBUG
   if (pms_error) {
-    Serial.print("PMS: resp ");
+    Serial.print(F("PMS: resp "));
     for (byte i = 0; i < 32; i++) {
       Serial.print(buf[i]);Serial.print(' ');
     }
@@ -93,14 +95,13 @@ bool pms_read()
 
 void pms_cmd(byte command, byte datah, byte datal)
 {
-  pmsSerial.listen();
   byte icmd[7] = {0x42, 0x4d, command, datah, datal, 0x00, 0x00};
   int vb = icmd[0] + icmd[1] + icmd[2] + icmd[3] + icmd[4];
   icmd[5] = (byte) (vb / 256);
   icmd[5] = (byte) (vb & 255);
   pmsSerial.write(icmd, 7);
 #ifdef DEBUG
-  Serial.print("PMS: cmd ");
+  Serial.print(F("PMS: cmd "));
   for (byte i = 0; i < 7; i++) {
     Serial.print(icmd[i]);Serial.print(' ');
   }
@@ -115,10 +116,15 @@ void pms_readcmdbuf()
   //0x00 0x04 - always 4 (a kind of frame length?)
   //<command byte> <data byte> <data byte> - the same as sent in command
   //<verify_high_byte> <verify_low_byte> - sum of all bytes except signature (thus it equals to corresponding sum in the command plus 4)
-#ifdef DEBUG
-  Serial.print("PMS: cmdresp=");Serial.println(pmsSerial.readBytes(buf, 9));
-#else
+  pmsSerial.listen();
   pmsSerial.readBytes(buf, 9);
+#ifdef DEBUG
+  Serial.print(F("PMS: cmdresp="));Serial.print(pmsSerial.readBytes(buf, 9));
+  Serial.print(':');
+  for (byte i = 0; i < 32; i++) {
+    Serial.print(buf[i]);Serial.print(' ');
+  }
+  Serial.println();    
 #endif
   //todo: add buf check    
 }

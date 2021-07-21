@@ -32,7 +32,7 @@ void heiger_ISR() {
   if(millis()-5 > heiger_ISR_millis_prev) 
   {
     heiger_count++;
-    //DBG(millis());DBGLN;
+    //DBGT("!");
   }
   heiger_ISR_millis_prev = millis(); 
 }

@@ -5,11 +5,13 @@
 
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
-#include <SoftwareSerial.h> //one SoftwareSerial uses 126 bytes on clean sketch, two - 157 bytes
+#include <AltSoftSerial.h>
+#include <NeoSWSerial.h> 
 #include <SPI.h>
 #include <PCD8544.h>
 #include <Adafruit_CCS811.h>
 #include <time.h>
+#include <uRTCLib.h>
 
 #include "SDLog.h"
 
@@ -17,14 +19,15 @@
 #include "pms5003.h"
 #include "heiger.h"
 
-#define DEBUG
+//#define DEBUG
 #define READ_INTERVAL_MS 20000
 #define BT_TIMEOUT_MS 2000
 #define BACKLIGHT_PIN 3
+#define USE_RTC
 
 byte buf[32];
 
-SoftwareSerial btSerial(8,9);
+AltSoftSerial btSerial;
 Adafruit_BME280 bme;
 Adafruit_CCS811 ccs;
 
@@ -35,7 +38,9 @@ PCD8544 lcd(7,6,5,4,A7);
 DLog dlog;
 
 uint32_t lastms;//last millis() data was read, used to track intervals between readings
+#ifndef USE_RTC
 uint32_t long rtimebase;//UNIX time of sensor start, calculates every time STATUS command is received
+#endif
 uint8_t rcmdlen;//length of currently receiving command
 uint32_t lastmsbt;//last millis() BT was read, used to track BT timeout
 int batcnt;//counter of battery measurements during "idle" cycle
@@ -43,83 +48,96 @@ long batacc;//"accumulator" of battery measurements
 
 tm timestruct;
 
+#ifdef USE_RTC
+uRTCLib rtc(0x68);
+#endif
 
 void setup() {
-  analogWrite(BACKLIGHT_PIN,255);
+  pinMode(BACKLIGHT_PIN, OUTPUT);
+  digitalWrite(BACKLIGHT_PIN,HIGH);
 
   // PCD8544-compatible displays may have a different resolution...
   lcd.begin(84, 48);
-  lcd.setCursor(0, 0);
-  lcd.print(F("Init: serial"));
+  //lcd.setCursor(0, 0); lcd.print(F("Init: serial"));
 
-#ifdef DEBUG
+//#ifdef DEBUG
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
-#endif
+//#endif
 
-  lcd.setCursor(0, 1);
-  lcd.print(F("Init: CO2"));
+  //lcd.setCursor(0, 1);lcd.print(F("Init: CO2"));
 
   //todo: check for MH setup error
-  mh_setup();
+  //mh_setup();
 
   pinMode(LED_BUILTIN, OUTPUT);
   analogReference(INTERNAL);
   pinMode(A6, INPUT);
 
-  lcd.setCursor(0, 2);
-  lcd.print(F("Init: temp&hum"));
+  //lcd.setCursor(0, 2);lcd.print(F("Init: temp&hum"));
 
   if (!bme.begin(0x76)) {
-    lcd.setCursor(0, 0);
-    lcd.print(F("BMP Error!"));
+    //lcd.setCursor(0, 0);
+    //lcd.print(F("BMP Error!"));
     digitalWrite(LED_BUILTIN, HIGH);
     delay(10000);
-    lcd.clear();
+    //lcd.clear();
   }
 
-  lcd.setCursor(0, 3);
-  lcd.print(F("Init: VOC"));
+  //lcd.setCursor(0, 3);lcd.print(F("Init: VOC"));
 
   if(!ccs.begin()){
-    lcd.setCursor(0, 0);
-    lcd.print(F("CCS Error!"));
+    //lcd.setCursor(0, 0);
+    //lcd.print(F("CCS Error!"));
     delay(10000);
-    lcd.clear();
+    //lcd.clear();
   }
 
   ccs.setDriveMode(CCS811_DRIVE_MODE_10SEC);
 
-  lcd.setCursor(0, 4);
-  lcd.print(F("Init: PM"));
+  //lcd.setCursor(0, 4);lcd.print(F("Init: PM"));
   //todo: check for PMS setup error
   pms_setup();
-  analogWrite(BACKLIGHT_PIN,10);
+  //analogWrite(BACKLIGHT_PIN,10);
+
+#ifdef USE_RTC
+  URTCLIB_WIRE.begin();
+#endif
 
   heiger_setup();
-  lcd.setCursor(0, 5);
-  lcd.print(F("Init done"));
+  //lcd.setCursor(0, 5);lcd.print(F("Init done"));
 
   lastms = 0;
   btSerial.begin(9600);
+  btSerial.println("ST");
 
 }
 
 void commandSync() {
   uint32_t * rtime = (uint32_t*) (buf + 3);
+#ifdef USE_RTC
+  gmtime_r(rtime, &timestruct);
+  rtc.set(timestruct.tm_sec, timestruct.tm_min, timestruct.tm_hour, 
+      timestruct.tm_wday, timestruct.tm_mday, timestruct.tm_mon, timestruct.tm_year-130);
+#else
   rtimebase = *rtime - millis()/1000;
+#endif
 #ifdef DEBUG
   Serial.print(F("Got time:"));Serial.println(*rtime); 
 #endif   
 }
 
 void loop() {
-  btSerial.listen();
+  btSerial.println('L');
+  Serial.println('L');
+
+  //btSerial.listen();
   batcnt = 0;
   batacc = 0;
   while (lastms != 0 && (millis() < lastms + READ_INTERVAL_MS)) {
-    while (btSerial.available() > 0)
+/*    while (btSerial.available() > 0)
     {
       buf[rcmdlen++] = btSerial.read();
+      //Serial.println(buf[rcmdlen-1]);
 #ifdef DEBUG
       Serial.print(F("B("));Serial.print(rcmdlen-1);Serial.print(F(")="));Serial.print(buf[rcmdlen-1]); Serial.print(':');Serial.println((char)buf[rcmdlen-1]); 
 #endif        
@@ -152,6 +170,9 @@ void loop() {
             break;
           case 1:
             if (rcmdlen>=11) {
+#ifdef USE_RTC
+                sdTransmitData();
+#else
               if (rtimebase !=0) {
                 sdTransmitData();
                 lastms = millis() - READ_INTERVAL_MS;
@@ -161,6 +182,7 @@ void loop() {
                 Serial.print(F("No sync - no transmission"));
 #endif        
               }
+#endif              
               rcmdlen = 0;
             }
             break;
@@ -190,6 +212,7 @@ void loop() {
       
       lastmsbt = millis();
     }
+    */
     if (rcmdlen > 1 && millis() > lastmsbt + BT_TIMEOUT_MS) {
       //timeout receiving command, reverting
 #ifdef DEBUG
@@ -201,17 +224,16 @@ void loop() {
     batcnt++;
     delay(100);
   }
+
   lastms = millis();
-  
+
   digitalWrite(LED_BUILTIN, HIGH);
 
   float bmeTemp = bme.readTemperature();
   float bmeHum = bme.readHumidity();
 
-  unsigned int ppm = mh_getPPM();
-  
-  ccs.setEnvironmentalData((int)bmeHum, bmeTemp);
   int ppb = -3;//data not available
+  ccs.setEnvironmentalData((int)bmeHum, bmeTemp);
   int eCO2 = -3;
   if(ccs.available()){
     if (!ccs.readData()) {
@@ -227,11 +249,11 @@ void loop() {
     }
       
   }
-
+  unsigned int ppm = 123;//mh_getPPM();
+  
   pms_read();
 
   float rad = heiger_getRadiation();
-
   //950 - 100%
   //700 - 0% (на 5 минут)
   int acc;
@@ -242,8 +264,8 @@ void loop() {
     if (acc > 100) acc = 100;
     if (acc < 0) acc = 0;
   }
+/*  
   
-
   lcd.clear();
   digitalWrite(LED_BUILTIN, LOW);
 
@@ -258,27 +280,40 @@ void loop() {
   lcd.setCursor(0, 2);
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print('*');
   lcd.setCursor(42,3); lcd.print(rad); lcd.print('R');
-
-
+*/
+#ifdef USE_RTC
+    rtc.refresh();
+    timestruct.tm_sec = rtc.second();
+    timestruct.tm_min = rtc.minute();
+    timestruct.tm_hour = rtc.hour();
+    timestruct.tm_wday = rtc.dayOfWeek();
+    timestruct.tm_mday = rtc.day();
+    timestruct.tm_mon = rtc.month();
+    timestruct.tm_year = 100 + rtc.year();
+    time_t ttime = mk_gmtime(&timestruct);
+    dlog.rtime = ttime;
+#else
   if (rtimebase != 0) {
     time_t ttime = rtimebase + millis()/1000 - UNIX_OFFSET;
     gmtime_r(&ttime, &timestruct);
+    dlog.rtime = rtimebase != 0 ? rtimebase + dlog.ssecs : 0;
+#endif
     isotime_r(&timestruct, (char*)buf);
     buf[10]=0;//separate date from time
     lcd.setCursor(0, 4);
     lcd.print((char*)(buf+11));//time
     lcd.setCursor(0, 5);
     lcd.print((char*)buf);//date
+#ifndef USE_RTC
   }
+#endif
+/*
 
   if (acc != 255) {
     lcd.setCursor(0, 3);
     lcd.print('B');lcd.print(acc);lcd.print('%');
   }
-
-
   dlog.ssecs = millis()/1000;
-  dlog.rtime = rtimebase != 0 ? rtimebase + dlog.ssecs : 0;
   dlog.data.temp = bmeTemp*100;
   dlog.data.hum = bmeHum*100;
   dlog.data.co2 = ppm;
@@ -287,11 +322,12 @@ void loop() {
   dlog.data.pm10 = pms_pm10_cf1;
   dlog.data.tvoc = ppb;
   dlog.data.rad = rad*1000;
-
-  writeLog(&dlog);
+*/
+  //writeLog(&dlog);
 
   //writing binary data to the bluetooth
-  
+
+  /*
   buf[0] = 0xDE; //signature
   buf[1] = 0xAF;
   buf[2] = 0;    //command code
@@ -302,6 +338,6 @@ void loop() {
   btSerial.write((byte*)&lastLogIdx, 4); //log index
   delay(50);  
   btSerial.write((byte*)&dlog.data, sizeof(Data)); //data
-  
+  */
   /**/
 }
