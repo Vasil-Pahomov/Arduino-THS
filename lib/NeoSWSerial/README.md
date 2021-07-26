@@ -1,0 +1,1 @@
+Customized NeoSWSerial with my fix (https://github.com/SlashDevin/NeoSWSerial/pull/48) 

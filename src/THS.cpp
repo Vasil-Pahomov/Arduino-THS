@@ -5,7 +5,6 @@
 
 #include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
 
-#include <AltSoftSerial.h>
 #include <NeoSWSerial.h> 
 #include <SPI.h>
 #include <PCD8544.h>
@@ -23,11 +22,11 @@
 #define READ_INTERVAL_MS 20000
 #define BT_TIMEOUT_MS 2000
 #define BACKLIGHT_PIN 3
-#define USE_RTC
+//#define USE_RTC
 
 byte buf[32];
 
-AltSoftSerial btSerial;
+NeoSWSerial btSerial(8,9);
 Adafruit_BME280 bme;
 Adafruit_CCS811 ccs;
 
@@ -53,63 +52,60 @@ uRTCLib rtc(0x68);
 #endif
 
 void setup() {
+  lcd.begin(84, 48);
+  lcd.setCursor(0, 0); lcd.print('#');
+
   pinMode(BACKLIGHT_PIN, OUTPUT);
   digitalWrite(BACKLIGHT_PIN,HIGH);
 
   // PCD8544-compatible displays may have a different resolution...
-  lcd.begin(84, 48);
-  //lcd.setCursor(0, 0); lcd.print(F("Init: serial"));
 
-//#ifdef DEBUG
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
-//#endif
-
-  //lcd.setCursor(0, 1);lcd.print(F("Init: CO2"));
 
   //todo: check for MH setup error
-  //mh_setup();
+  mh_setup();
+  lcd.print('#');
 
   pinMode(LED_BUILTIN, OUTPUT);
   analogReference(INTERNAL);
   pinMode(A6, INPUT);
 
-  //lcd.setCursor(0, 2);lcd.print(F("Init: temp&hum"));
 
   if (!bme.begin(0x76)) {
     //lcd.setCursor(0, 0);
     //lcd.print(F("BMP Error!"));
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(10000);
+    //digitalWrite(LED_BUILTIN, HIGH);
+    //delay(10000);
     //lcd.clear();
   }
 
-  //lcd.setCursor(0, 3);lcd.print(F("Init: VOC"));
+  lcd.print('#');
 
   if(!ccs.begin()){
     //lcd.setCursor(0, 0);
     //lcd.print(F("CCS Error!"));
-    delay(10000);
+    //delay(10000);
     //lcd.clear();
   }
-
   ccs.setDriveMode(CCS811_DRIVE_MODE_10SEC);
 
-  //lcd.setCursor(0, 4);lcd.print(F("Init: PM"));
+  lcd.print('#');
   //todo: check for PMS setup error
   pms_setup();
-  //analogWrite(BACKLIGHT_PIN,10);
+  lcd.print('#');
 
 #ifdef USE_RTC
   URTCLIB_WIRE.begin();
 #endif
 
   heiger_setup();
-  //lcd.setCursor(0, 5);lcd.print(F("Init done"));
+  lcd.print('#');
 
   lastms = 0;
   btSerial.begin(9600);
   btSerial.println("ST");
 
+  lcd.print('#');
 }
 
 void commandSync() {
@@ -127,14 +123,12 @@ void commandSync() {
 }
 
 void loop() {
-  btSerial.println('L');
-  Serial.println('L');
 
-  //btSerial.listen();
+  btSerial.listen();
   batcnt = 0;
   batacc = 0;
   while (lastms != 0 && (millis() < lastms + READ_INTERVAL_MS)) {
-/*    while (btSerial.available() > 0)
+    while (btSerial.available() > 0)
     {
       buf[rcmdlen++] = btSerial.read();
       //Serial.println(buf[rcmdlen-1]);
@@ -212,7 +206,6 @@ void loop() {
       
       lastmsbt = millis();
     }
-    */
     if (rcmdlen > 1 && millis() > lastmsbt + BT_TIMEOUT_MS) {
       //timeout receiving command, reverting
 #ifdef DEBUG
@@ -222,13 +215,13 @@ void loop() {
     }    
     batacc += analogRead(A6);
     batcnt++;
+    
     delay(100);
   }
 
   lastms = millis();
 
   digitalWrite(LED_BUILTIN, HIGH);
-
   float bmeTemp = bme.readTemperature();
   float bmeHum = bme.readHumidity();
 
@@ -249,8 +242,7 @@ void loop() {
     }
       
   }
-  unsigned int ppm = 123;//mh_getPPM();
-  
+  unsigned int ppm = mh_getPPM();
   pms_read();
 
   float rad = heiger_getRadiation();
@@ -264,10 +256,7 @@ void loop() {
     if (acc > 100) acc = 100;
     if (acc < 0) acc = 0;
   }
-/*  
-  
   lcd.clear();
-  digitalWrite(LED_BUILTIN, LOW);
 
   lcd.setCursor(0, 0);
   lcd.print(bmeTemp);lcd.print('C');
@@ -280,7 +269,6 @@ void loop() {
   lcd.setCursor(0, 2);
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print('*');
   lcd.setCursor(42,3); lcd.print(rad); lcd.print('R');
-*/
 #ifdef USE_RTC
     rtc.refresh();
     timestruct.tm_sec = rtc.second();
@@ -307,7 +295,7 @@ void loop() {
 #ifndef USE_RTC
   }
 #endif
-/*
+
 
   if (acc != 255) {
     lcd.setCursor(0, 3);
@@ -322,12 +310,11 @@ void loop() {
   dlog.data.pm10 = pms_pm10_cf1;
   dlog.data.tvoc = ppb;
   dlog.data.rad = rad*1000;
-*/
-  //writeLog(&dlog);
+  writeLog(&dlog);
 
   //writing binary data to the bluetooth
 
-  /*
+  
   buf[0] = 0xDE; //signature
   buf[1] = 0xAF;
   buf[2] = 0;    //command code
@@ -338,6 +325,7 @@ void loop() {
   btSerial.write((byte*)&lastLogIdx, 4); //log index
   delay(50);  
   btSerial.write((byte*)&dlog.data, sizeof(Data)); //data
-  */
+  
   /**/
+  digitalWrite(LED_BUILTIN, LOW);
 }

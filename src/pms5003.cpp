@@ -1,9 +1,9 @@
-#include <SoftwareSerial.h>
+#include <NeoSWSerial.h>
 #include <Arduino.h>
 #include "pms5003.h"
 #include "global.h"
-#define DEBUG
-SoftwareSerial pmsSerial(A1, A0); // A1- к TX сенсора, A0 - к RX
+//#define DEBUG
+NeoSWSerial pmsSerial(A1, A0); // A1- к TX сенсора, A0 - к RX
 
 unsigned int 
   pms_pm1_cf1, 
@@ -29,68 +29,82 @@ bool pms_error;
 
 void pms_setup() {
   pmsSerial.begin(9600);
-  pms_setactive(false);
+  pmsSerial.ignore();
+  //My PMS sensor has broken and does not receive commands any longer
+  //Luckily it starts in active mode sending data every second
+  //So instead of turning it to passive mode and then sending "read" command before reading the data, I only wait for the data
+  //Sometimes reading occur at the middle of actual data and the buffer is garbaged, that's why there's several attempts to read the data
+  //pms_setactive(false);
 }
 
 bool pms_read()
 {
-  pms_cmd(PMS_CMD_READ, 0, 0);
-  memset(buf,0,32);
-  pmsSerial.listen();
-  pmsSerial.setTimeout(2000);
-  pmsSerial.readBytes(buf, 32);
-  pms_error = false;
+  int attempts = 3;
+  while (attempts-- > 0) {
+    //pms_cmd(PMS_CMD_READ, 0, 0);
+    memset(buf,0,32);
+    pmsSerial.flush();
+    pmsSerial.listen();
+    pmsSerial.readBytes(buf, 32);
+    pmsSerial.ignore();
+    pms_error = false;
 
-  if (buf[0] != 0x42 || buf[1] != 0x4d) {
-    pms_error = true;
-#ifdef DEBUG
-    Serial.print(F("PMS read warning: signature incorrect, expected 16973, found:"));Serial.println(intbuf(0,1));
-#endif
-  }
-  
-  if (buf[2] != 0 || buf[3] != 28) {
-    pms_error = true;
-#ifdef DEBUG
-    Serial.print(F("PMS read warning: frame length is incorrect, expected 28, found:"));Serial.println(intbuf(2,3));
-#endif
-  }
-
-  unsigned int checksum = 0;
-  for (byte i=0;i<30;i++)
-  {
-    checksum += buf[i];
-  }
-  if (buf[30] != (checksum >> 8) || buf[31] != (checksum & 255)) {
-    pms_error = true;
-#ifdef DEBUG
-    Serial.print(F("PMS read warning: checksum is incorrect, expected")); Serial.print(checksum); Serial.print(F(", found:"));Serial.println(intbuf(30,31));     
-#endif
-  }
-
-#ifdef DEBUG
-  if (pms_error) {
-    Serial.print(F("PMS: resp "));
-    for (byte i = 0; i < 32; i++) {
-      Serial.print(buf[i]);Serial.print(' ');
+    if (buf[0] != 0x42 || buf[1] != 0x4d) {
+      pms_error = true;
+  #ifdef DEBUG
+      Serial.print(F("PMS read warning: signature incorrect, expected 16973, found:"));Serial.println(intbuf(0,1));
+  #endif
     }
-    Serial.println();    
-  }
-#endif
+    
+    if (buf[2] != 0 || buf[3] != 28) {
+      pms_error = true;
+  #ifdef DEBUG
+      Serial.print(F("PMS read warning: frame length is incorrect, expected 28, found:"));Serial.println(intbuf(2,3));
+  #endif
+    }
 
-  if (!pms_error) {
-    pms_pm1_cf1 = intbuf(4,5);
-    pms_pm2_5_cf1 = intbuf(6,7);
-    pms_pm10_cf1 = intbuf(8,9);
-    pms_pm1_ae = intbuf(10,11);
-    pms_pm2_5_ae = intbuf(12,13);
-    pms_pm10_ae = intbuf(14,15);
-    pms_num_0_3 = intbuf(16,17);
-    pms_num_0_5 = intbuf(18,19);
-    pms_num_1 = intbuf(20,21);
-    pms_num_2_5 = intbuf(22,23);
-    pms_num_5_0 = intbuf(24,25);
-    pms_num_10 = intbuf(26,27);
+    unsigned int checksum = 0;
+    for (byte i=0;i<30;i++)
+    {
+      checksum += buf[i];
+    }
+    if (buf[30] != (checksum >> 8) || buf[31] != (checksum & 255)) {
+      pms_error = true;
+  #ifdef DEBUG
+      Serial.print(F("PMS read warning: checksum is incorrect, expected ")); Serial.print(checksum); Serial.print(F(", found:"));Serial.println(intbuf(30,31));     
+  #endif
+    }
+
+  #ifdef DEBUG
+    if (pms_error) {
+      Serial.print(F("PMS: resp "));
+      for (byte i = 0; i < 32; i++) {
+        Serial.print(buf[i]);Serial.print(' ');
+      }
+      Serial.println();    
+    }
+  #endif
+
+    if (!pms_error) {
+      pms_pm1_cf1 = intbuf(4,5);
+      pms_pm2_5_cf1 = intbuf(6,7);
+      pms_pm10_cf1 = intbuf(8,9);
+      pms_pm1_ae = intbuf(10,11);
+      pms_pm2_5_ae = intbuf(12,13);
+      pms_pm10_ae = intbuf(14,15);
+      pms_num_0_3 = intbuf(16,17);
+      pms_num_0_5 = intbuf(18,19);
+      pms_num_1 = intbuf(20,21);
+      pms_num_2_5 = intbuf(22,23);
+      pms_num_5_0 = intbuf(24,25);
+      pms_num_10 = intbuf(26,27);
+#ifdef DEBUG      
+      Serial.println(F("PMS OK"));
+#endif      
+      return true;
+    }
   }
+  return false;
 }
 
 void pms_cmd(byte command, byte datah, byte datal)
