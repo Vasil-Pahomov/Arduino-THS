@@ -3,7 +3,8 @@
 #define SERIAL_BUFFER_SIZE 32
 #define _SS_MAX_RX_BUFF 32 
 
-#include <Adafruit_BME280.h> // 209 bytes (273 bytes with init and read)
+#define TINY_BME280_I2C
+#include <TinyBME280.h>
 
 #include <NeoSWSerial.h> 
 #include <SPI.h>
@@ -22,12 +23,14 @@
 #define READ_INTERVAL_MS 20000
 #define BT_TIMEOUT_MS 2000
 #define BACKLIGHT_PIN 3
-//#define USE_RTC
+#define BATTERY_PIN A6
+#define USE_RTC
+#define BME_TEMP_CORRECTION -140 //correction of BME280 sensor readings, -1.4 Celsius in my case
 
 byte buf[32];
 
 NeoSWSerial btSerial(8,9);
-Adafruit_BME280 bme;
+tiny::BME280 bme;
 Adafruit_CCS811 ccs;
 
 
@@ -63,33 +66,31 @@ void setup() {
   Serial.begin(9600); //engaging Serial uses 168 bytes on clean sketch
 
   //todo: check for MH setup error
+  lcd.print('#');
   mh_setup();
   lcd.print('#');
 
   pinMode(LED_BUILTIN, OUTPUT);
   analogReference(INTERNAL);
-  pinMode(A6, INPUT);
+  pinMode(BATTERY_PIN, INPUT);
 
 
-  if (!bme.begin(0x76)) {
-    //lcd.setCursor(0, 0);
-    //lcd.print(F("BMP Error!"));
-    //digitalWrite(LED_BUILTIN, HIGH);
-    //delay(10000);
-    //lcd.clear();
+  if (!bme.beginI2C(0x76)) {
+    lcd.print('!');
+  } else {
+    lcd.print('#');
   }
 
-  lcd.print('#');
+  // 
+  bme.settings.tempCorrection = BME_TEMP_CORRECTION;  
 
   if(!ccs.begin()){
-    //lcd.setCursor(0, 0);
-    //lcd.print(F("CCS Error!"));
-    //delay(10000);
-    //lcd.clear();
+    lcd.print('!');
   }
-  ccs.setDriveMode(CCS811_DRIVE_MODE_10SEC);
-
-  lcd.print('#');
+  else {
+    ccs.setDriveMode(CCS811_DRIVE_MODE_10SEC);
+    lcd.print('#');
+  }
   //todo: check for PMS setup error
   pms_setup();
   lcd.print('#');
@@ -103,23 +104,28 @@ void setup() {
 
   lastms = 0;
   btSerial.begin(9600);
-  btSerial.println("ST");
 
   lcd.print('#');
 }
 
 void commandSync() {
   uint32_t * rtime = (uint32_t*) (buf + 3);
-#ifdef USE_RTC
-  gmtime_r(rtime, &timestruct);
-  rtc.set(timestruct.tm_sec, timestruct.tm_min, timestruct.tm_hour, 
-      timestruct.tm_wday, timestruct.tm_mday, timestruct.tm_mon, timestruct.tm_year-130);
-#else
-  rtimebase = *rtime - millis()/1000;
-#endif
 #ifdef DEBUG
   Serial.print(F("Got time:"));Serial.println(*rtime); 
 #endif   
+#ifdef USE_RTC
+  (*rtime) -= UNIX_OFFSET;
+  gmtime_r(rtime, &timestruct);
+  rtc.set(timestruct.tm_sec, timestruct.tm_min, timestruct.tm_hour, 
+      timestruct.tm_wday, timestruct.tm_mday, timestruct.tm_mon, timestruct.tm_year);
+#ifdef DEBUG
+  Serial.println(*rtime);
+  Serial.print(timestruct.tm_year);Serial.print('.');Serial.print(timestruct.tm_mon);Serial.print('.');Serial.print(timestruct.tm_mday);Serial.print(' ');
+  Serial.print(timestruct.tm_hour);Serial.print(':');Serial.print(timestruct.tm_min);Serial.print(':');Serial.println(timestruct.tm_sec);
+#endif
+#else
+  rtimebase = *rtime - millis()/1000;
+#endif
 }
 
 void loop() {
@@ -166,6 +172,7 @@ void loop() {
             if (rcmdlen>=11) {
 #ifdef USE_RTC
                 sdTransmitData();
+                lastms = millis() - READ_INTERVAL_MS;
 #else
               if (rtimebase !=0) {
                 sdTransmitData();
@@ -213,7 +220,7 @@ void loop() {
 #endif        
         rcmdlen = 0;  
     }    
-    batacc += analogRead(A6);
+    batacc += analogRead(BATTERY_PIN);
     batcnt++;
     
     delay(100);
@@ -222,8 +229,8 @@ void loop() {
   lastms = millis();
 
   digitalWrite(LED_BUILTIN, HIGH);
-  float bmeTemp = bme.readTemperature();
-  float bmeHum = bme.readHumidity();
+  float bmeTemp = bme.readFixedTempC() / 100.0;
+  float bmeHum = bme.readFixedHumidity() / 1000.0;
 
   int ppb = -3;//data not available
   ccs.setEnvironmentalData((int)bmeHum, bmeTemp);
@@ -247,7 +254,7 @@ void loop() {
 
   float rad = heiger_getRadiation();
   //950 - 100%
-  //700 - 0% (на 5 минут)
+  //700 - 0%
   int acc;
   if (batcnt == 0) {
     acc = 255;
@@ -270,16 +277,16 @@ void loop() {
   lcd.print(pms_pm1_cf1); lcd.print(' '); lcd.print(pms_pm2_5_cf1); lcd.print(' '); lcd.print(pms_pm10_cf1); lcd.print('*');
   lcd.setCursor(42,3); lcd.print(rad); lcd.print('R');
 #ifdef USE_RTC
-    rtc.refresh();
-    timestruct.tm_sec = rtc.second();
-    timestruct.tm_min = rtc.minute();
-    timestruct.tm_hour = rtc.hour();
-    timestruct.tm_wday = rtc.dayOfWeek();
-    timestruct.tm_mday = rtc.day();
-    timestruct.tm_mon = rtc.month();
-    timestruct.tm_year = 100 + rtc.year();
-    time_t ttime = mk_gmtime(&timestruct);
-    dlog.rtime = ttime;
+  rtc.refresh();
+  timestruct.tm_sec = rtc.second();
+  timestruct.tm_min = rtc.minute();
+  timestruct.tm_hour = rtc.hour();
+  timestruct.tm_wday = rtc.dayOfWeek();
+  timestruct.tm_mday = rtc.day();
+  timestruct.tm_mon = rtc.month();
+  timestruct.tm_year = rtc.year();
+  time_t ttime = mk_gmtime(&timestruct) + UNIX_OFFSET;
+  dlog.rtime = ttime;
 #else
   if (rtimebase != 0) {
     time_t ttime = rtimebase + millis()/1000 - UNIX_OFFSET;
@@ -287,6 +294,7 @@ void loop() {
     dlog.rtime = rtimebase != 0 ? rtimebase + dlog.ssecs : 0;
 #endif
     isotime_r(&timestruct, (char*)buf);
+    if (buf[0] == 0) buf[0] = '!';
     buf[10]=0;//separate date from time
     lcd.setCursor(0, 4);
     lcd.print((char*)(buf+11));//time

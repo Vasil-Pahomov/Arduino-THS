@@ -178,7 +178,7 @@ void sdTransmitData() {
     if (firstRecord) {
       // the very first record for transmitting
 #ifdef DEBUG
-//        Serial.print(F("SD: opening first file / at pos:"));Serial.print(fname);Serial.print('/');Serial.println(recIdx * sizeof(DLog));
+        Serial.print(F("SD: opening first file / at pos:"));Serial.print(fname);Serial.print('/');Serial.println(recIdx * sizeof(DLog));
 #endif        
       file = SD.open(fname, FILE_READ);
       if (!file) {
@@ -205,9 +205,9 @@ void sdTransmitData() {
         lastmst = millis();
       }
     } else {
-#ifdef DEBUG
+//#ifdef DEBUG
         Serial.print(F("SD: error reading file "));Serial.println(fname);
-#endif        
+//#endif        
       return;
     }
     recIdx++;
@@ -219,7 +219,7 @@ void sdTransmitData() {
       file = SD.open(fname, FILE_READ);
       recIdx = 0;
 #ifdef DEBUG
-//      Serial.print(F("SD: Jumping to next file "));Serial.println(fname);
+      Serial.print(F("SD: Jumping to next file "));Serial.println(fname);
 #endif        
     }
     
@@ -227,6 +227,6 @@ void sdTransmitData() {
   }
   file.close();
 #ifdef DEBUG
-//  Serial.println(F("SD: Transmission done "));
+  Serial.println(F("SD: Transmission done "));
 #endif        
 }
